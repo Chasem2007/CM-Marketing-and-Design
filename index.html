@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#05090f" />
+    <meta name="description" content="CM Marketing & Design — Strategic branding, stunning websites, and marketing that drives results." />
+    <title>CM Marketing & Design</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <style>
+      /* Prevents a white flash before React loads */
+      body { margin: 0; background: #05090f; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!--
+      HIDDEN NETLIFY FORM
+      Netlify needs this HTML form to detect your form fields at build time.
+      The actual form the user sees is rendered by React — this is just the
+      "registration" so Netlify knows what to expect. It's invisible (display:none).
+      
+      To set up email notifications:
+      1. Go to Netlify dashboard → your project → Forms
+      2. Click "Form notifications" → "Add notification" → "Email notification"
+      3. Enter your email address
+      4. Now you'll get emailed every time someone submits the form!
+    -->
+    <form name="contact" netlify netlify-honeypot="bot-field" hidden>
+      <input name="bot-field" />
+      <input name="firstName" />
+      <input name="lastName" />
+      <input name="email" />
+      <input name="phone" />
+      <input name="company" />
+      <input name="services" />
+    </form>
+
+    <!-- Vite injects your app through this script tag -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
