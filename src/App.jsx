@@ -158,7 +158,11 @@ export default function App() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedBrandId, setSelectedBrandId] = useState(null);
+  const [brandKitTab, setBrandKitTab] = useState("colors");
+  const [copiedHex, setCopiedHex] = useState(null);
   const fileRef = useRef(null);
+  const brandFileRef = useRef(null);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000);
@@ -228,6 +232,94 @@ export default function App() {
   const handleDeleteBrand = async (id) => { await saveBrands(brands.filter(b => b.id !== id)); showToast("Brand deleted"); };
   const toggleAssign = async (bid, uid) => {
     await saveBrands(brands.map(b => { if (b.id !== bid) return b; const c = b.assignedTo || []; return { ...b, assignedTo: c.includes(uid) ? c.filter(x => x !== uid) : [...c, uid] }; }));
+  };
+
+  // ── Brand Kit helpers ──────────────────────────────────────────
+  /*
+    BRAND KIT DATA STRUCTURE — each brand now has these extra fields:
+    - brandColors: [{ id, hex, name }]           → color palette with hex codes
+    - logoFiles: [{ id, name, type, data }]       → logo images in various formats
+    - moodBoard: [{ id, name, data }]             → inspiration images
+    - fonts: [{ id, name, role, weight, url }]    → font information
+    
+    All stored as part of the brand object in cm-brands storage.
+  */
+  const openBrand = (id) => { setSelectedBrandId(id); setBrandKitTab("colors"); setPage("brand"); window.scrollTo({ top: 0 }); };
+  const selectedBrand = brands.find(b => b.id === selectedBrandId);
+
+  const updateBrand = async (id, updates) => {
+    const updated = brands.map(b => b.id === id ? { ...b, ...updates } : b);
+    await saveBrands(updated);
+  };
+
+  // Colors
+  const addBrandColor = async (brandId, hex, name) => {
+    const b = brands.find(x => x.id === brandId);
+    const colors = b?.brandColors || [];
+    await updateBrand(brandId, { brandColors: [...colors, { id: `c-${Date.now()}`, hex: hex.startsWith("#") ? hex : `#${hex}`, name: name || "" }] });
+    showToast("Color added");
+  };
+  const removeBrandColor = async (brandId, colorId) => {
+    const b = brands.find(x => x.id === brandId);
+    await updateBrand(brandId, { brandColors: (b?.brandColors || []).filter(c => c.id !== colorId) });
+  };
+  const copyHex = (hex) => {
+    navigator.clipboard.writeText(hex).then(() => { setCopiedHex(hex); setTimeout(() => setCopiedHex(null), 1500); showToast(`Copied ${hex}`); });
+  };
+
+  // Logo files
+  const addLogoFile = (brandId, file) => {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const b = brands.find(x => x.id === brandId);
+      const logos = b?.logoFiles || [];
+      const ext = file.name.split(".").pop().toUpperCase();
+      await updateBrand(brandId, { logoFiles: [...logos, { id: `l-${Date.now()}`, name: file.name, type: ext, data: reader.result }] });
+      showToast(`Logo "${file.name}" added`);
+    };
+    reader.readAsDataURL(file);
+  };
+  const removeLogoFile = async (brandId, logoId) => {
+    const b = brands.find(x => x.id === brandId);
+    await updateBrand(brandId, { logoFiles: (b?.logoFiles || []).filter(l => l.id !== logoId) });
+  };
+
+  // Mood board
+  const addMoodImage = (brandId, file) => {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const b = brands.find(x => x.id === brandId);
+      const mood = b?.moodBoard || [];
+      await updateBrand(brandId, { moodBoard: [...mood, { id: `m-${Date.now()}`, name: file.name, data: reader.result }] });
+      showToast("Image added to mood board");
+    };
+    reader.readAsDataURL(file);
+  };
+  const removeMoodImage = async (brandId, imgId) => {
+    const b = brands.find(x => x.id === brandId);
+    await updateBrand(brandId, { moodBoard: (b?.moodBoard || []).filter(m => m.id !== imgId) });
+  };
+
+  // Fonts
+  const addFont = async (brandId, fontData) => {
+    const b = brands.find(x => x.id === brandId);
+    const fonts = b?.fonts || [];
+    await updateBrand(brandId, { fonts: [...fonts, { id: `f-${Date.now()}`, ...fontData }] });
+    showToast("Font added");
+  };
+  const removeFont = async (brandId, fontId) => {
+    const b = brands.find(x => x.id === brandId);
+    await updateBrand(brandId, { fonts: (b?.fonts || []).filter(f => f.id !== fontId) });
+  };
+
+  // Download helper — triggers a browser download from a data URL
+  const downloadFile = (dataUrl, filename) => {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // ── CMS: start/save/cancel editing ─────────────────────────────
@@ -635,6 +727,7 @@ export default function App() {
                         ); })}
                       </div>
                     )}
+                    <button onClick={() => openBrand(b.id)} style={{ ...btn, width: "100%", padding: "10px", fontSize: 12, marginTop: 12, background: C.bgAlt, color: C.accent, border: `1px solid ${C.border}` }}>Edit Brand Kit →</button>
                   </div>
                 </div>
               ))}
@@ -796,7 +889,9 @@ export default function App() {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
               {clientBrands.map((b,i) => (
-                <div key={b.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}>
+                <div key={b.id} onClick={() => openBrand(b.id)} style={{ ...crd, overflow: "hidden", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0, cursor: "pointer", transition: "all .3s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
                   <div style={{ height: b.image ? "auto" : 90, background: b.image ? "transparent" : `linear-gradient(135deg,${b.color}20,${b.color}08)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {b.image ? <img src={b.image} alt="" style={{ width: "100%", height: 160, objectFit: "cover" }} /> : <div style={{ fontSize: 36, fontFamily: D, fontWeight: 700, color: b.color, opacity: .35 }}>{b.name.charAt(0)}</div>}
                   </div>
@@ -804,11 +899,213 @@ export default function App() {
                     <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 5 }}>{b.name}</h4>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: `${b.color}10`, color: b.color }}>{b.category}</span>
                     {b.notes && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.7, marginTop: 10 }}>{b.notes}</p>}
+                    <div style={{ marginTop: 12, fontSize: 12, color: C.accent, fontWeight: 600 }}>View Brand Kit →</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* ══════ BRAND KIT DETAIL PAGE ══════ */}
+      {page === "brand" && selectedBrand && (
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
+          {/* Header with back button */}
+          <div style={{ marginBottom: 32 }}>
+            <button onClick={() => nav("portal")} style={{ background: "none", border: "none", color: C.textDim, fontSize: 13, cursor: "pointer", fontFamily: F, marginBottom: 16, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to {isAdmin ? "Admin Portal" : "My Brands"}</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              {selectedBrand.image ? (
+                <img src={selectedBrand.image} alt="" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: 56, height: 56, borderRadius: 14, background: `linear-gradient(135deg,${selectedBrand.color}30,${selectedBrand.color}10)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: D, fontSize: 24, fontWeight: 700, color: selectedBrand.color }}>{selectedBrand.name.charAt(0)}</div>
+              )}
+              <div>
+                <h2 style={{ fontFamily: D, fontSize: "clamp(24px,3.5vw,36px)", fontWeight: 700, color: C.white, marginBottom: 2 }}>{selectedBrand.name}</h2>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: `${selectedBrand.color}12`, color: selectedBrand.color }}>{selectedBrand.category}</span>
+                  {selectedBrand.notes && <span style={{ color: C.textDim, fontSize: 12 }}>· {selectedBrand.notes}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Brand Kit tabs */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
+            {[{ k: "colors", l: "Colors", i: "◆" }, { k: "logos", l: "Logos", i: "◈" }, { k: "mood", l: "Mood Board", i: "◉" }, { k: "fonts", l: "Fonts", i: "Aa" }].map(t => (
+              <button key={t.k} onClick={() => setBrandKitTab(t.k)} style={{ background: brandKitTab===t.k ? C.accentGlow : C.card, border: `1px solid ${brandKitTab===t.k ? C.accent : C.border}`, color: brandKitTab===t.k ? C.accent : C.textDim, padding: "10px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
+            ))}
+          </div>
+
+          {/* ── COLORS TAB ── */}
+          {brandKitTab === "colors" && (<>
+            {/* Admin: add color form */}
+            {isAdmin && (
+              <div style={{ ...crd, padding: "28px 24px", marginBottom: 24 }}>
+                <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Color</h4>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div>
+                    <label style={lbl}>Hex Code *</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="color" id="colorPicker" defaultValue="#c9952c" style={{ width: 40, height: 38, border: "none", borderRadius: 6, cursor: "pointer", background: "none" }} />
+                      <input id="hexInput" style={{ ...inp, width: 120 }} placeholder="#c9952c" defaultValue="#c9952c"
+                        onChange={e => { const c = document.getElementById("colorPicker"); if (c && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) c.value = e.target.value; }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={lbl}>Color Name <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label>
+                    <input id="colorNameInput" style={{ ...inp, width: 180 }} placeholder="e.g. Brand Gold" />
+                  </div>
+                  <button onClick={() => {
+                    const hex = document.getElementById("hexInput").value.trim();
+                    const name = document.getElementById("colorNameInput").value.trim();
+                    if (hex) { addBrandColor(selectedBrand.id, hex, name); document.getElementById("hexInput").value = "#c9952c"; document.getElementById("colorNameInput").value = ""; document.getElementById("colorPicker").value = "#c9952c"; }
+                  }} style={{ ...btn, padding: "10px 22px", fontSize: 13 }}>Add</button>
+                </div>
+                <p style={{ color: C.textDim, fontSize: 11, marginTop: 10 }}>Use the color picker or type a hex code. Add as many colors as needed.</p>
+              </div>
+            )}
+            {/* Color swatches */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 14 }}>
+              {(selectedBrand.brandColors || []).map(c => (
+                <div key={c.id} style={{ ...crd, overflow: "hidden", position: "relative" }}>
+                  <div style={{ height: 100, background: c.hex, borderRadius: "14px 14px 0 0" }} />
+                  <div style={{ padding: "14px 16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <button onClick={() => copyHex(c.hex)} style={{ background: "none", border: "none", color: copiedHex === c.hex ? C.success : C.white, fontSize: 14, fontWeight: 700, fontFamily: "monospace", cursor: "pointer", padding: 0, transition: "color .2s" }}>{copiedHex === c.hex ? "Copied!" : c.hex}</button>
+                      {isAdmin && <button onClick={() => removeBrandColor(selectedBrand.id, c.id)} style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", padding: "2px 4px" }}>✕</button>}
+                    </div>
+                    {c.name && <div style={{ color: C.textDim, fontSize: 12 }}>{c.name}</div>}
+                  </div>
+                </div>
+              ))}
+              {!(selectedBrand.brandColors || []).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim, fontSize: 14 }}>{isAdmin ? "No colors yet. Add your first color above." : "No colors have been added to this brand yet."}</div>}
+            </div>
+          </>)}
+
+          {/* ── LOGOS TAB ── */}
+          {brandKitTab === "logos" && (<>
+            {isAdmin && (
+              <div style={{ ...crd, padding: "28px 24px", marginBottom: 24 }}>
+                <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Upload Logo Files</h4>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 14 }}>Upload logo versions in different formats — PNG, SVG, PDF, AI, EPS, etc.</p>
+                <input type="file" ref={brandFileRef} accept="image/*,.svg,.pdf,.ai,.eps,.psd" multiple onChange={e => { Array.from(e.target.files).forEach(f => addLogoFile(selectedBrand.id, f)); e.target.value = ""; }} style={{ display: "none" }} />
+                <button onClick={() => brandFileRef.current.click()} style={{ ...btn, padding: "10px 22px", fontSize: 13, background: C.bgAlt, color: C.accent, border: `1px solid ${C.border}` }}>📁 Choose Files</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14 }}>
+              {(selectedBrand.logoFiles || []).map(l => (
+                <div key={l.id} style={{ ...crd, overflow: "hidden" }}>
+                  <div style={{ height: 140, background: C.bgAlt, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                    {l.data.startsWith("data:image") ? (
+                      <img src={l.data} alt={l.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                    ) : (
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 32, marginBottom: 4 }}>📄</div>
+                        <div style={{ color: C.accent, fontSize: 13, fontWeight: 700 }}>{l.type}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: "14px 16px" }}>
+                    <div style={{ fontSize: 13, color: C.white, fontWeight: 600, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => downloadFile(l.data, l.name)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F, flex: 1 }}>↓ Download</button>
+                      {isAdmin && <button onClick={() => removeLogoFile(selectedBrand.id, l.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "6px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>✕</button>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!(selectedBrand.logoFiles || []).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim, fontSize: 14 }}>{isAdmin ? "No logos yet. Upload logo files above." : "No logo files have been added yet."}</div>}
+            </div>
+          </>)}
+
+          {/* ── MOOD BOARD TAB ── */}
+          {brandKitTab === "mood" && (<>
+            {isAdmin && (
+              <div style={{ ...crd, padding: "28px 24px", marginBottom: 24 }}>
+                <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add to Mood Board</h4>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 14 }}>Upload inspiration images, style references, or design concepts.</p>
+                <input type="file" id="moodInput" accept="image/*" multiple onChange={e => { Array.from(e.target.files).forEach(f => addMoodImage(selectedBrand.id, f)); e.target.value = ""; }} style={{ display: "none" }} />
+                <button onClick={() => document.getElementById("moodInput").click()} style={{ ...btn, padding: "10px 22px", fontSize: 13, background: C.bgAlt, color: C.accent, border: `1px solid ${C.border}` }}>📁 Upload Images</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
+              {(selectedBrand.moodBoard || []).map(m => (
+                <div key={m.id} style={{ ...crd, overflow: "hidden", position: "relative" }}>
+                  <img src={m.data} alt={m.name} style={{ width: "100%", height: 200, objectFit: "cover" }} />
+                  <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, color: C.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{m.name}</span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => downloadFile(m.data, m.name)} style={{ background: "none", border: "none", color: C.accent, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>↓</button>
+                      {isAdmin && <button onClick={() => removeMoodImage(selectedBrand.id, m.id)} style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer" }}>✕</button>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!(selectedBrand.moodBoard || []).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim, fontSize: 14 }}>{isAdmin ? "No mood board images yet. Upload some inspiration above." : "No mood board images have been added yet."}</div>}
+            </div>
+          </>)}
+
+          {/* ── FONTS TAB ── */}
+          {brandKitTab === "fonts" && (<>
+            {isAdmin && (
+              <div style={{ ...crd, padding: "28px 24px", marginBottom: 24 }}>
+                <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Font</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 14 }}>
+                  <div><label style={lbl}>Font Name *</label><input id="fontName" style={inp} placeholder="e.g. Montserrat" /></div>
+                  <div><label style={lbl}>Usage / Role</label><select id="fontRole" style={{ ...inp, cursor: "pointer" }}>
+                    <option value="Primary">Primary / Headings</option>
+                    <option value="Secondary">Secondary / Body</option>
+                    <option value="Accent">Accent / Display</option>
+                    <option value="Monospace">Monospace / Code</option>
+                    <option value="Other">Other</option>
+                  </select></div>
+                  <div><label style={lbl}>Weight(s)</label><input id="fontWeight" style={inp} placeholder="e.g. 400, 600, 700" /></div>
+                  <div><label style={lbl}>Source URL <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><input id="fontUrl" style={inp} placeholder="fonts.google.com/..." /></div>
+                </div>
+                <button onClick={() => {
+                  const name = document.getElementById("fontName").value.trim();
+                  if (!name) return;
+                  addFont(selectedBrand.id, {
+                    name,
+                    role: document.getElementById("fontRole").value,
+                    weight: document.getElementById("fontWeight").value.trim(),
+                    url: document.getElementById("fontUrl").value.trim(),
+                  });
+                  document.getElementById("fontName").value = "";
+                  document.getElementById("fontWeight").value = "";
+                  document.getElementById("fontUrl").value = "";
+                }} style={{ ...btn, padding: "10px 22px", fontSize: 13 }}>Add Font</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gap: 12 }}>
+              {(selectedBrand.fonts || []).map(f => (
+                <div key={f.id} style={{ ...crd, padding: "24px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                      <span style={{ fontFamily: D, fontSize: 22, color: C.white, fontWeight: 700 }}>{f.name}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>{f.role}</span>
+                    </div>
+                    <div style={{ fontSize: 30, color: C.white, fontWeight: 300, opacity: .7, marginBottom: 8, letterSpacing: "1px" }}>Aa Bb Cc Dd Ee 123</div>
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                      {f.weight && <div style={{ fontSize: 12, color: C.textDim }}><span style={{ fontWeight: 600 }}>Weights:</span> {f.weight}</div>}
+                      {f.url && <a href={f.url.startsWith("http") ? f.url : `https://${f.url}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.accent, textDecoration: "none", fontWeight: 600 }}>View Source ↗</a>}
+                    </div>
+                  </div>
+                  {isAdmin && <button onClick={() => removeFont(selectedBrand.id, f.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "6px 14px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Remove</button>}
+                </div>
+              ))}
+              {!(selectedBrand.fonts || []).length && <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim, fontSize: 14 }}>{isAdmin ? "No fonts added yet. Add font information above." : "No font information has been added yet."}</div>}
+            </div>
+          </>)}
+        </section>
+      )}
+      {/* Brand not found fallback */}
+      {page === "brand" && !selectedBrand && (
+        <section style={{ maxWidth: 500, margin: "0 auto", padding: "150px 20px 72px", textAlign: "center" }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>🔍</div>
+          <h2 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 10 }}>Brand Not Found</h2>
+          <button onClick={() => nav("portal")} style={{ ...btn, padding: "13px 32px", fontSize: 15 }}>Back to Portal</button>
         </section>
       )}
 
