@@ -41,27 +41,27 @@ import storage from "./storage";
 */
 
 // ═══════════════════════════════════════════════════════════════════
-// THEME COLORS — Two complete palettes. The app switches between them.
+// THEME COLORS — Matched to the CM logo: charcoal + warm cream
 // ═══════════════════════════════════════════════════════════════════
 const DARK = {
-  bg: "#05090f", bgAlt: "#0b1120", card: "#0f172a",
-  accent: "#c9952c", accentLight: "#e2b44e",
-  accentGlow: "rgba(201,149,44,0.13)", accentGlow2: "rgba(201,149,44,0.06)",
-  text: "#cbd5e1", textDim: "#5e6e82", white: "#f1f5f9",
-  border: "#1a2740", success: "#22c55e", successBg: "rgba(34,197,94,0.1)",
-  danger: "#ef4444", dangerBg: "rgba(239,68,68,0.1)",
-  blue: "#3b82f6", purple: "#a78bfa",
-  navBg: "rgba(5,9,15,0.92)",
+  bg: "#141414", bgAlt: "#1c1c1c", card: "#222222",
+  accent: "#ddd2be", accentLight: "#eee6d6",
+  accentGlow: "rgba(221,210,190,0.1)", accentGlow2: "rgba(221,210,190,0.05)",
+  text: "#c5c0b8", textDim: "#7a756d", white: "#ece5d8",
+  border: "#333333", success: "#6ec98f", successBg: "rgba(110,201,143,0.1)",
+  danger: "#e05555", dangerBg: "rgba(224,85,85,0.1)",
+  blue: "#7aabe0", purple: "#a890d6",
+  navBg: "rgba(20,20,20,0.94)",
 };
 const LIGHT = {
-  bg: "#f8f6f1", bgAlt: "#efece5", card: "#ffffff",
-  accent: "#b07d1a", accentLight: "#c9952c",
-  accentGlow: "rgba(176,125,26,0.1)", accentGlow2: "rgba(176,125,26,0.05)",
-  text: "#3d3929", textDim: "#7a7462", white: "#1a1708",
-  border: "#ddd8cc", success: "#16a34a", successBg: "rgba(22,163,74,0.08)",
-  danger: "#dc2626", dangerBg: "rgba(220,38,38,0.08)",
-  blue: "#2563eb", purple: "#7c3aed",
-  navBg: "rgba(248,246,241,0.92)",
+  bg: "#f5f0e8", bgAlt: "#ebe5da", card: "#ffffff",
+  accent: "#3a3a3a", accentLight: "#555555",
+  accentGlow: "rgba(58,58,58,0.08)", accentGlow2: "rgba(58,58,58,0.04)",
+  text: "#3a3a3a", textDim: "#8a8478", white: "#1e1e1e",
+  border: "#d6cfc2", success: "#3a8a5c", successBg: "rgba(58,138,92,0.08)",
+  danger: "#c0392b", dangerBg: "rgba(192,57,43,0.08)",
+  blue: "#2e6da4", purple: "#6b4fa0",
+  navBg: "rgba(245,240,232,0.94)",
 };
 const F = "'DM Sans',sans-serif";
 const D = "'Fraunces',serif";
@@ -161,8 +161,10 @@ export default function App() {
   const [selectedBrandId, setSelectedBrandId] = useState(null);
   const [brandKitTab, setBrandKitTab] = useState("colors");
   const [copiedHex, setCopiedHex] = useState(null);
+  const [projects, setProjects] = useState([]);
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
+  const projectFileRef = useRef(null);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000);
@@ -178,6 +180,7 @@ export default function App() {
         setUsers(u);
 
         try { const d = await storage.get("cm-brands"); if (d?.value) setBrands(JSON.parse(d.value)); } catch(e) {}
+        try { const d = await storage.get("cm-projects"); if (d?.value) setProjects(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-session"); if (d?.value) setCurrentUser(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-content"); if (d?.value) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(d.value) }); } catch(e) {}
       } catch(e) {}
@@ -188,6 +191,7 @@ export default function App() {
   // ── Save helpers ───────────────────────────────────────────────
   const saveUsers = async (v) => { setUsers(v); try { await storage.set("cm-users", JSON.stringify(v)); } catch(e) {} };
   const saveBrands = async (v) => { setBrands(v); try { await storage.set("cm-brands", JSON.stringify(v)); } catch(e) {} };
+  const saveProjects = async (v) => { setProjects(v); try { await storage.set("cm-projects", JSON.stringify(v)); } catch(e) {} };
   const saveContent = async (v) => { setContent(v); try { await storage.set("cm-content", JSON.stringify(v)); } catch(e) {} };
 
   // ── Auth ───────────────────────────────────────────────────────
@@ -322,6 +326,57 @@ export default function App() {
     document.body.removeChild(a);
   };
 
+  // ── Projects helpers ───────────────────────────────────────────
+  /*
+    PROJECT DATA STRUCTURE:
+    {
+      id, title, description, category, url,
+      coverImage (data URL), 
+      gallery: [{ id, name, data }],
+      files: [{ id, name, type, data }],
+      featured: boolean,
+      createdAt
+    }
+  */
+  const addProject = async (proj) => {
+    await saveProjects([{ id: `p-${Date.now()}`, ...proj, createdAt: new Date().toISOString() }, ...projects]);
+    showToast(`Project "${proj.title}" added!`);
+  };
+  const deleteProject = async (id) => {
+    await saveProjects(projects.filter(p => p.id !== id));
+    showToast("Project deleted");
+  };
+  const updateProject = async (id, updates) => {
+    await saveProjects(projects.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+  const addProjectImage = (projId, file) => {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const p = projects.find(x => x.id === projId);
+      const gallery = p?.gallery || [];
+      await updateProject(projId, { gallery: [...gallery, { id: `gi-${Date.now()}`, name: file.name, data: reader.result }] });
+    };
+    reader.readAsDataURL(file);
+  };
+  const removeProjectImage = async (projId, imgId) => {
+    const p = projects.find(x => x.id === projId);
+    await updateProject(projId, { gallery: (p?.gallery || []).filter(g => g.id !== imgId) });
+  };
+  const addProjectFile = (projId, file) => {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const p = projects.find(x => x.id === projId);
+      const files = p?.files || [];
+      const ext = file.name.split(".").pop().toUpperCase();
+      await updateProject(projId, { files: [...files, { id: `pf-${Date.now()}`, name: file.name, type: ext, data: reader.result }] });
+    };
+    reader.readAsDataURL(file);
+  };
+  const removeProjectFile = async (projId, fileId) => {
+    const p = projects.find(x => x.id === projId);
+    await updateProject(projId, { files: (p?.files || []).filter(f => f.id !== fileId) });
+  };
+
   // ── CMS: start/save/cancel editing ─────────────────────────────
   const startEditing = () => { setEditContent({ ...content }); setCmsUnsaved(false); };
   const cancelEditing = () => { setEditContent(null); setCmsUnsaved(false); };
@@ -408,7 +463,7 @@ export default function App() {
   // ── Styles ─────────────────────────────────────────────────────
   const inp = { width: "100%", padding: "11px 14px", background: C.bgAlt, border: `1px solid ${C.border}`, borderRadius: 8, color: C.white, fontSize: 14, fontFamily: F, outline: "none" };
   const lbl = { display: "block", color: C.textDim, fontSize: 11, fontWeight: 700, marginBottom: 5, letterSpacing: "0.8px", textTransform: "uppercase" };
-  const btn = { background: `linear-gradient(135deg, ${C.accent}, #a37a1e)`, border: "none", color: DARK.bg, padding: "12px 26px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F };
+  const btn = { background: dark ? C.accent : C.accent, border: "none", color: dark ? "#141414" : "#f5f0e8", padding: "12px 26px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "all .2s" };
   const crd = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 14 };
 
   // ── Loading ────────────────────────────────────────────────────
@@ -466,7 +521,7 @@ export default function App() {
 
           {/* ── Desktop nav (hidden on mobile via CSS) ── */}
           <div className="nav-desktop" style={{ display: "flex", gap: 3, alignItems: "center" }}>
-            {["home","services","about","contact"].map(k => (
+            {["home","services","projects","about","contact"].map(k => (
               <button key={k} onClick={() => nav(k)} style={{ background: page===k ? C.accentGlow : "transparent", border: "none", color: page===k ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F, textTransform: "capitalize" }}>{k}</button>
             ))}
             <button onClick={toggleTheme} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ width: 34, height: 34, borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}`, color: C.accent, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", marginLeft: 2 }}>{dark ? "☀" : "☽"}</button>
@@ -515,7 +570,7 @@ export default function App() {
             background: C.navBg,
           }}
         >
-          {["home","services","about","contact"].map(k => (
+          {["home","services","projects","about","contact"].map(k => (
             <button
               key={k}
               onClick={() => nav(k)}
@@ -550,30 +605,70 @@ export default function App() {
            All text comes from "ct" (content state) so the CMS works.
            ══════════════════════════════════════════════════════════ */}
       {page === "home" && (<>
-        <section style={{ minHeight: "86vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "70px 20px" }}>
-          <div style={{ position: "absolute", width: 650, height: 650, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow},transparent 65%)`, top: "-15%", right: "-12%", animation: "glow 6s ease-in-out infinite" }} />
-          <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle,rgba(167,139,250,0.05),transparent 65%)", bottom: "8%", left: "-8%" }} />
-          <div style={{ textAlign: "center", maxWidth: 740, position: "relative", zIndex: 1 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 50, background: C.accentGlow, border: "1px solid rgba(201,149,44,0.18)", color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 32, animation: "fadeUp .5s ease" }}>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent }} />{ct.heroTagline}
+        {/* ── HERO ── */}
+        <section style={{ minHeight: "90vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "70px 20px" }}>
+          <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow},transparent 60%)`, top: "-10%", right: "-10%" }} />
+          <div style={{ position: "absolute", width: 350, height: 350, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 60%)`, bottom: "10%", left: "-5%" }} />
+          <div style={{ textAlign: "center", maxWidth: 760, position: "relative", zIndex: 1 }}>
+            <div style={{ marginBottom: 32, animation: "fadeUp .5s ease" }}>
+              <img src="/logo.png" alt="CM" style={{ width: 72, height: 72, borderRadius: 18 }} />
             </div>
-            <h1 style={{ fontFamily: D, fontSize: "clamp(38px,6vw,70px)", fontWeight: 700, lineHeight: 1.06, color: C.white, marginBottom: 24, animation: "fadeUp .7s ease" }}>
-              {ct.heroTitle1}{" "}<span key={dark ? "d" : "l"} style={{ background: `linear-gradient(90deg,${C.accent},${C.accentLight},${C.accent})`, backgroundSize: "200% auto", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent", animation: "shimmer 4s linear infinite", fontStyle: "italic" }}>{ct.heroTitleAccent}</span>
+            <h1 style={{ fontFamily: D, fontSize: "clamp(36px,6vw,68px)", fontWeight: 700, lineHeight: 1.08, color: C.white, marginBottom: 24, animation: "fadeUp .7s ease" }}>
+              {ct.heroTitle1}{" "}<span key={dark ? "d" : "l"} style={{ fontStyle: "italic", color: C.accent }}>{ct.heroTitleAccent}</span>
             </h1>
-            <p style={{ fontSize: 17, lineHeight: 1.75, color: C.textDim, maxWidth: 540, margin: "0 auto 40px", animation: "fadeUp .9s ease" }}>{ct.heroSubtitle}</p>
+            <p style={{ fontSize: 18, lineHeight: 1.8, color: C.textDim, maxWidth: 520, margin: "0 auto 40px", animation: "fadeUp .9s ease" }}>{ct.heroSubtitle}</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 1.1s ease" }}>
-              <button onClick={() => nav("services")} style={{ ...btn, padding: "15px 34px", fontSize: 15, boxShadow: "0 4px 24px rgba(201,149,44,0.22)" }}>{ct.heroCta1}</button>
-              <button onClick={() => nav("about")} style={{ background: "transparent", border: `1.5px solid ${C.border}`, color: C.white, padding: "14px 34px", borderRadius: 9, cursor: "pointer", fontSize: 15, fontWeight: 600, fontFamily: F }}>{ct.heroCta2}</button>
+              <button onClick={() => nav("contact")} style={{ ...btn, padding: "16px 38px", fontSize: 16 }}>Get a Free Consultation</button>
+              <button onClick={() => nav("services")} style={{ background: "transparent", border: `1.5px solid ${C.border}`, color: C.white, padding: "15px 38px", borderRadius: 9, cursor: "pointer", fontSize: 16, fontWeight: 600, fontFamily: F, transition: "all .2s" }}>View Services →</button>
             </div>
           </div>
         </section>
-        <section style={{ maxWidth: 860, margin: "0 auto 72px", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 16 }}>
+
+        {/* ── STATS ── */}
+        <section style={{ maxWidth: 860, margin: "0 auto 60px", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14 }}>
           {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
             <div key={i} style={{ textAlign: "center", padding: "24px 16px", ...crd, animation: `fadeUp .5s ease ${i*.08}s forwards`, opacity: 0 }}>
               <div style={{ fontFamily: D, fontSize: 28, fontWeight: 700, color: C.accent, marginBottom: 3 }}>{s.n}</div>
               <div style={{ fontSize: 12, color: C.textDim, fontWeight: 500 }}>{s.l}</div>
             </div>
           ))}
+        </section>
+
+        {/* ── SERVICES PREVIEW on Home ── */}
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "40px 20px 60px" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 10 }}>What We Do</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,4vw,42px)", fontWeight: 700, color: C.white }}>Services Built to Grow Your Brand</h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 32 }}>
+            {[
+              { icon: "✦", t: "Branding" }, { icon: "◈", t: "Websites" }, { icon: "◉", t: "Social Media" },
+              { icon: "△", t: "Strategy" }, { icon: "□", t: "Content" }, { icon: "◇", t: "SEO & Ads" },
+            ].map((s,i) => (
+              <div key={i} onClick={() => nav("services")} style={{ ...crd, padding: "24px 18px", textAlign: "center", cursor: "pointer", transition: "all .3s", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                <div style={{ fontSize: 22, color: C.accent, marginBottom: 10 }}>{s.icon}</div>
+                <div style={{ fontFamily: D, fontSize: 15, fontWeight: 700, color: C.white }}>{s.t}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <button onClick={() => nav("contact")} style={{ ...btn, padding: "14px 34px", fontSize: 15 }}>Tell Us About Your Project →</button>
+          </div>
+        </section>
+
+        {/* ── WHY CM — trust section ── */}
+        <section style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px 60px" }}>
+          <div style={{ ...crd, padding: "48px 40px", textAlign: "center", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
+            <img src="/logo.png" alt="CM" style={{ width: 48, height: 48, borderRadius: 12, marginBottom: 20 }} />
+            <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14 }}>Your Brand Deserves Better</h3>
+            <p style={{ color: C.textDim, fontSize: 16, lineHeight: 1.8, maxWidth: 520, margin: "0 auto 28px" }}>
+              We don't do cookie-cutter. Every brand we build is researched, strategized, and crafted specifically for your business and audience. Let's create something worth remembering.
+            </p>
+            <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Start Your Project</button>
+          </div>
         </section>
       </>)}
 
@@ -603,6 +698,13 @@ export default function App() {
                 <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.75 }}>{s.d}</p>
               </div>
             ))}
+          </div>
+          {/* CTA at bottom of services */}
+          <div style={{ textAlign: "center", marginTop: 48, padding: "48px 32px", ...crd, borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
+            <h3 style={{ fontFamily: D, fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Not Sure What You Need?</h3>
+            <p style={{ color: C.textDim, fontSize: 15, marginBottom: 24, maxWidth: 460, margin: "0 auto 24px" }}>We'll help you figure out the right strategy for your business. No pressure, no commitment — just a conversation.</p>
+            <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Book a Free Consultation →</button>
           </div>
         </section>
       )}
@@ -636,6 +738,170 @@ export default function App() {
                 </div>
               </div>
             ))}
+          </div>
+          {/* CTA at bottom of about */}
+          <div style={{ textAlign: "center", marginTop: 40, maxWidth: 760, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ ...crd, padding: "48px 36px", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
+              <img src="/logo.png" alt="CM" style={{ width: 44, height: 44, borderRadius: 11, marginBottom: 18 }} />
+              <h3 style={{ fontFamily: D, fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Let's Build Something Great Together</h3>
+              <p style={{ color: C.textDim, fontSize: 15, marginBottom: 24, maxWidth: 440, margin: "0 auto 24px" }}>Ready to take your brand to the next level? Reach out and let's talk about your vision.</p>
+              <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Get In Touch →</button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ══════ PROJECTS ══════ */}
+      {page === "projects" && (
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>Portfolio</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4vw,48px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Our Projects</h2>
+            <p style={{ color: C.textDim, fontSize: 15, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>A selection of brands, websites, and campaigns we've brought to life.</p>
+          </div>
+
+          {/* Admin: Add Project form */}
+          {isAdmin && (
+            <div style={{ ...crd, padding: "32px 28px", marginBottom: 32 }}>
+              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 20 }}>+ Add Project</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
+                <div><label style={lbl}>Project Title *</label><input id="projTitle" style={inp} placeholder="e.g. Summit Coffee Rebrand" /></div>
+                <div><label style={lbl}>Category</label><select id="projCategory" style={{ ...inp, cursor: "pointer" }}>
+                  <option value="Branding">Branding</option>
+                  <option value="Website">Website</option>
+                  <option value="Social Media">Social Media</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Print">Print</option>
+                  <option value="Packaging">Packaging</option>
+                  <option value="Other">Other</option>
+                </select></div>
+                <div><label style={lbl}>External URL <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><input id="projUrl" style={inp} placeholder="https://client-site.com" /></div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={lbl}>Description</label>
+                <textarea id="projDesc" style={{ ...inp, resize: "vertical" }} rows={3} placeholder="Brief overview of the project, goals, and results..." />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={lbl}>Cover Image</label>
+                <input type="file" id="projCoverInput" accept="image/*" onChange={e => {
+                  const f = e.target.files[0]; if (!f) return;
+                  const r = new FileReader(); r.onloadend = () => { window._projCover = r.result; e.target.nextElementSibling && (e.target.nextElementSibling.src = r.result); }; r.readAsDataURL(f);
+                }} style={{ display: "none" }} />
+                <div onClick={() => document.getElementById("projCoverInput").click()} style={{ border: `2px dashed ${C.border}`, borderRadius: 10, padding: 28, textAlign: "center", cursor: "pointer", background: C.bgAlt }}>
+                  <div style={{ fontSize: 24, marginBottom: 4 }}>📁</div>
+                  <div style={{ color: C.textDim, fontSize: 12 }}>Click to upload a cover image</div>
+                </div>
+              </div>
+              <button onClick={() => {
+                const title = document.getElementById("projTitle").value.trim();
+                if (!title) return;
+                addProject({
+                  title,
+                  category: document.getElementById("projCategory").value,
+                  description: document.getElementById("projDesc").value.trim(),
+                  url: document.getElementById("projUrl").value.trim(),
+                  coverImage: window._projCover || null,
+                  gallery: [], files: [], featured: false,
+                });
+                document.getElementById("projTitle").value = "";
+                document.getElementById("projDesc").value = "";
+                document.getElementById("projUrl").value = "";
+                window._projCover = null;
+              }} style={btn}>Add Project</button>
+            </div>
+          )}
+
+          {/* Project cards grid */}
+          {projects.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
+              {projects.map((p, i) => (
+                <div key={p.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .4s ease ${i * .06}s forwards`, opacity: 0, transition: "all .3s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-3px)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                  {/* Cover image */}
+                  <div style={{ height: p.coverImage ? "auto" : 160, background: p.coverImage ? "transparent" : `linear-gradient(135deg,${C.accent}15,${C.accent}05)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {p.coverImage ? (
+                      <img src={p.coverImage} alt={p.title} style={{ width: "100%", height: 220, objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ fontSize: 40, fontFamily: D, fontWeight: 700, color: C.accent, opacity: .2 }}>{p.title.charAt(0)}</div>
+                    )}
+                  </div>
+                  <div style={{ padding: "22px 24px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div>
+                        <h3 style={{ fontFamily: D, fontSize: 20, color: C.white, fontWeight: 700, marginBottom: 6 }}>{p.title}</h3>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: C.accentGlow, color: C.accent }}>{p.category}</span>
+                      </div>
+                      {isAdmin && <button onClick={() => deleteProject(p.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, width: 26, height: 26, borderRadius: 5, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>}
+                    </div>
+                    {p.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.7, marginTop: 10, marginBottom: 12 }}>{p.description}</p>}
+
+                    {/* External URL */}
+                    {p.url && (
+                      <a href={p.url.startsWith("http") ? p.url : `https://${p.url}`} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none", marginBottom: 12 }}>
+                        View Live ↗
+                      </a>
+                    )}
+
+                    {/* Gallery preview */}
+                    {(p.gallery || []).length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6 }}>
+                          {(p.gallery || []).map(g => (
+                            <div key={g.id} style={{ position: "relative", flexShrink: 0 }}>
+                              <img src={g.data} alt={g.name} style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.border}` }} />
+                              {isAdmin && <button onClick={() => removeProjectImage(p.id, g.id)} style={{ position: "absolute", top: 2, right: 2, background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", width: 16, height: 16, borderRadius: 3, cursor: "pointer", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Files */}
+                    {(p.files || []).length > 0 && (
+                      <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {(p.files || []).map(f => (
+                          <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 6, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 11 }}>
+                            <span style={{ color: C.accent, fontWeight: 700 }}>{f.type}</span>
+                            <button onClick={() => downloadFile(f.data, f.name)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 11, fontFamily: F }}>↓ {f.name}</button>
+                            {isAdmin && <button onClick={() => removeProjectFile(p.id, f.id)} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", fontSize: 10 }}>✕</button>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Admin: add images/files to this project */}
+                    {isAdmin && (
+                      <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <div>
+                          <input type="file" id={`gallery-${p.id}`} accept="image/*" multiple onChange={e => { Array.from(e.target.files).forEach(f => addProjectImage(p.id, f)); e.target.value = ""; }} style={{ display: "none" }} />
+                          <button onClick={() => document.getElementById(`gallery-${p.id}`).click()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>+ Images</button>
+                        </div>
+                        <div>
+                          <input type="file" id={`files-${p.id}`} multiple onChange={e => { Array.from(e.target.files).forEach(f => addProjectFile(p.id, f)); e.target.value = ""; }} style={{ display: "none" }} />
+                          <button onClick={() => document.getElementById(`files-${p.id}`).click()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "6px 12px", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>+ Files</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ ...crd, padding: "60px 36px", textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🎨</div>
+              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>{isAdmin ? "No Projects Yet" : "Projects Coming Soon"}</h3>
+              <p style={{ color: C.textDim, fontSize: 13 }}>{isAdmin ? "Add your first project above to showcase your work." : "Check back soon to see our latest work."}</p>
+            </div>
+          )}
+
+          {/* CTA at bottom */}
+          <div style={{ textAlign: "center", marginTop: 48, ...crd, padding: "48px 36px", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
+            <h3 style={{ fontFamily: D, fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Like What You See?</h3>
+            <p style={{ color: C.textDim, fontSize: 15, marginBottom: 24, maxWidth: 440, margin: "0 auto 24px" }}>Your brand could be next. Let's talk about what we can create for you.</p>
+            <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Start Your Project →</button>
           </div>
         </section>
       )}
@@ -1226,7 +1492,7 @@ export default function App() {
             <span style={{ fontWeight: 600, fontSize: 13, color: C.textDim }}>CM Marketing & Design</span>
           </div>
           <div style={{ display: "flex", gap: 18 }}>
-            {["home","services","about","contact"].map(k => <button key={k} onClick={() => nav(k)} style={{ background: "none", border: "none", color: C.textDim, fontSize: 12, cursor: "pointer", fontFamily: F, textTransform: "capitalize" }}>{k}</button>)}
+            {["home","services","projects","about","contact"].map(k => <button key={k} onClick={() => nav(k)} style={{ background: "none", border: "none", color: C.textDim, fontSize: 12, cursor: "pointer", fontFamily: F, textTransform: "capitalize" }}>{k}</button>)}
           </div>
           <div style={{ color: C.textDim, fontSize: 10, opacity: .4 }}>© {new Date().getFullYear()} CM Marketing & Design</div>
         </div>
