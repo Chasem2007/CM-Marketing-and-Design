@@ -410,44 +410,35 @@ export default function App() {
     if (!contactForm.firstName.trim() || !contactForm.lastName.trim() || !contactForm.email.trim()) return;
     setContactSubmitting(true);
     try {
-      // Try the SMTP serverless function first
-      const resp = await fetch("/.netlify/functions/send-email", {
+      // ALWAYS submit to Netlify Forms first — this is what shows in the dashboard
+      const encode = (data) => Object.keys(data).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(data[k])).join("&");
+      await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: encode({
+          "form-name": "contact",
+          "firstName": contactForm.firstName,
+          "lastName": contactForm.lastName,
+          "email": contactForm.email,
+          "phone": contactForm.phone,
+          "company": contactForm.company,
+          "services": contactForm.services.join(", "),
+        }),
+      });
+      // ALSO try SMTP function for email notification (fire and forget)
+      fetch("/.netlify/functions/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName: contactForm.firstName,
-          lastName: contactForm.lastName,
-          email: contactForm.email,
-          phone: contactForm.phone,
-          company: contactForm.company,
-          services: contactForm.services.join(", "),
+          firstName: contactForm.firstName, lastName: contactForm.lastName,
+          email: contactForm.email, phone: contactForm.phone,
+          company: contactForm.company, services: contactForm.services.join(", "),
         }),
-      });
-      if (!resp.ok) throw new Error("Function failed");
+      }).catch(() => {}); // silently ignore if SMTP not configured
       setContactSubmitted(true);
       setContactForm({ firstName: "", lastName: "", email: "", phone: "", company: "", services: [] });
     } catch (e) {
-      // Fallback to Netlify Forms if the function isn't deployed yet
-      try {
-        const encode = (data) => Object.keys(data).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(data[k])).join("&");
-        await fetch("/", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: encode({
-            "form-name": "contact",
-            "firstName": contactForm.firstName,
-            "lastName": contactForm.lastName,
-            "email": contactForm.email,
-            "phone": contactForm.phone,
-            "company": contactForm.company,
-            "services": contactForm.services.join(", "),
-          }),
-        });
-        setContactSubmitted(true);
-        setContactForm({ firstName: "", lastName: "", email: "", phone: "", company: "", services: [] });
-      } catch (e2) {
-        showToast("Something went wrong. Please try again.", "error");
-      }
+      showToast("Something went wrong. Please try again.", "error");
     }
     setContactSubmitting(false);
   };

@@ -28,7 +28,8 @@
       3. Enter your email address
       4. Now you'll get emailed every time someone submits the form!
     -->
-    <form name="contact" netlify netlify-honeypot="bot-field" hidden>
+    <form name="contact" data-netlify="true" netlify-honeypot="bot-field" style="display:none">
+      <input name="form-name" value="contact" />
       <input name="bot-field" />
       <input name="firstName" />
       <input name="lastName" />
