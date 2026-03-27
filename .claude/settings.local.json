@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 \"C:/Users/chase/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"marketing design agency branding creative professional\" --design-system -p \"CM Marketing & Design\" -f markdown)",
+      "Bash(python \"C:/Users/chase/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"marketing design agency branding creative professional\" --design-system -p \"CM Marketing & Design\" -f markdown)"
+    ]
+  }
+}

@@ -63,7 +63,7 @@ const LIGHT = {
   blue: "#2e6da4", purple: "#6b4fa0",
   navBg: "rgba(245,240,232,0.94)",
 };
-const F = "'DM Sans',sans-serif";
+const F = "'Space Grotesk',sans-serif";
 const D = "'Fraunces',serif";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -452,16 +452,17 @@ export default function App() {
   const ct = content; // shorthand for reading content in JSX
 
   // ── Styles ─────────────────────────────────────────────────────
-  const inp = { width: "100%", padding: "11px 14px", background: C.bgAlt, border: `1px solid ${C.border}`, borderRadius: 8, color: C.white, fontSize: 14, fontFamily: F, outline: "none" };
-  const lbl = { display: "block", color: C.textDim, fontSize: 11, fontWeight: 700, marginBottom: 5, letterSpacing: "0.8px", textTransform: "uppercase" };
-  const btn = { background: dark ? C.accent : C.accent, border: "none", color: dark ? "#141414" : "#f5f0e8", padding: "12px 26px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "all .2s" };
-  const crd = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 14 };
+  const inp = { width: "100%", padding: "12px 16px", background: C.bgAlt, border: `1px solid ${C.border}`, borderRadius: 10, color: C.white, fontSize: 15, fontFamily: F, outline: "none", transition: "all .2s" };
+  const lbl = { display: "block", color: C.textDim, fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: "1px", textTransform: "uppercase" };
+  const btn = { background: C.accent, border: "none", color: dark ? "#141414" : "#f5f0e8", padding: "12px 26px", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.01em" };
+  const crd = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 16 };
 
   // ── Loading ────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ fontFamily: F, background: C.bg, color: C.white, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-      @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+      @keyframes spin{to{transform:rotate(360deg)}}
+      @keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
       <div style={{ textAlign: "center" }}>
         <img src="/logo.png" alt="CM" style={{ width: 48, height: 48, borderRadius: 12, margin: "0 auto 14px", display: "block" }} />
         <div style={{ color: C.textDim, fontSize: 13 }}>Loading…</div>
@@ -475,17 +476,23 @@ export default function App() {
   return (
     <div style={{ fontFamily: F, background: C.bg, color: C.text, minHeight: "100vh" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&display=swap');
         *{margin:0;padding:0;box-sizing:border-box}
         html{scroll-behavior:smooth}
-        ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:${C.bg}} ::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:${C.border};border-radius:99px}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
         @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
-        @keyframes glow{0%,100%{box-shadow:0 0 24px ${C.accentGlow}}50%{box-shadow:0 0 48px ${C.accentGlow}}}
+        @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes float{0%,100%{transform:translateY(0px)}50%{transform:translateY(-8px)}}
+        @keyframes gradientPulse{0%,100%{opacity:.6}50%{opacity:1}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
         button:active{transform:scale(0.97)!important}
-        input:focus,textarea:focus,select:focus{border-color:${C.accent}!important}
+        button{cursor:pointer}
+        input:focus,textarea:focus,select:focus{border-color:${C.accent}!important;outline:none;box-shadow:0 0 0 3px ${C.accentGlow}}
         textarea{font-family:${F}}
+        a{cursor:pointer}
         /* Desktop nav links — hidden on mobile */
         .nav-desktop { display: flex; gap: 3; align-items: center; }
         .nav-hamburger { display: none; }
@@ -496,6 +503,12 @@ export default function App() {
           .nav-hamburger { display: flex !important; }
           .nav-mobile-panel { display: flex !important; }
         }
+        .svc-card:hover{border-color:${C.accent}!important;transform:translateY(-3px)!important;box-shadow:0 12px 40px ${C.accentGlow}!important}
+        .stat-card{transition:all .3s ease}
+        .stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px ${C.accentGlow}}
+        .nav-link:hover{color:${C.accent}!important;background:${C.accentGlow}!important}
+        .footer-link:hover{color:${C.accent}!important}
+        .val-card:hover{border-color:${C.accent}!important;box-shadow:0 4px 24px ${C.accentGlow}!important}
       `}</style>
 
       {/* Toast */}
@@ -513,16 +526,16 @@ export default function App() {
           {/* ── Desktop nav (hidden on mobile via CSS) ── */}
           <div className="nav-desktop" style={{ display: "flex", gap: 3, alignItems: "center" }}>
             {["home","services","projects","about","contact"].map(k => (
-              <button key={k} onClick={() => nav(k)} style={{ background: page===k ? C.accentGlow : "transparent", border: "none", color: page===k ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F, textTransform: "capitalize" }}>{k}</button>
+              <button key={k} onClick={() => nav(k)} className="nav-link" style={{ background: page===k ? C.accentGlow : "transparent", border: "none", color: page===k ? C.accent : C.textDim, padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F, textTransform: "capitalize", transition: "all .2s" }}>{k}</button>
             ))}
             <button onClick={toggleTheme} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ width: 34, height: 34, borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}`, color: C.accent, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", marginLeft: 2 }}>{dark ? "☀" : "☽"}</button>
             {currentUser ? (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 6 }}>
-                <button onClick={() => nav("portal")} style={{ background: page==="portal" ? C.accentGlow : "transparent", border: `1px solid ${page==="portal" ? C.accent : C.border}`, color: page==="portal" ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>{isAdmin ? "⚙ Admin" : "📁 Brands"}</button>
-                <button onClick={handleLogout} title={`Logout (${currentUser.displayName})`} style={{ width: 30, height: 30, borderRadius: 7, background: isAdmin ? C.accentGlow : "rgba(59,130,246,0.12)", border: `1px solid ${isAdmin ? C.accent : C.blue}`, color: isAdmin ? C.accent : C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{currentUser.displayName.charAt(0).toUpperCase()}</button>
+                <button onClick={() => nav("portal")} style={{ background: page==="portal" ? C.accentGlow : "transparent", border: `1px solid ${page==="portal" ? C.accent : C.border}`, color: page==="portal" ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F, transition: "all .2s" }}>{isAdmin ? "Admin" : "My Brands"}</button>
+                <button onClick={handleLogout} title={`Logout (${currentUser.displayName})`} style={{ width: 32, height: 32, borderRadius: 8, background: isAdmin ? C.accentGlow : "rgba(59,130,246,0.12)", border: `1px solid ${isAdmin ? C.accent : C.blue}`, color: isAdmin ? C.accent : C.blue, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F }}>{currentUser.displayName.charAt(0).toUpperCase()}</button>
               </div>
             ) : (
-              <button onClick={() => nav("login")} style={{ ...btn, padding: "7px 18px", fontSize: 12, marginLeft: 6 }}>Log In</button>
+              <button onClick={() => nav("login")} style={{ ...btn, padding: "8px 20px", fontSize: 13, marginLeft: 6 }}>Log In</button>
             )}
           </div>
 
@@ -581,7 +594,7 @@ export default function App() {
           {/* Portal / Login button in mobile menu */}
           <div style={{ paddingTop: 12, display: "flex", gap: 8 }}>
             {currentUser ? (<>
-              <button onClick={() => nav("portal")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>{isAdmin ? "⚙ Admin Portal" : "📁 My Brands"}</button>
+              <button onClick={() => nav("portal")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>{isAdmin ? "Admin Portal" : "My Brands"}</button>
               <button onClick={() => { handleLogout(); setMenuOpen(false); }} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "12px 16px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>Log Out</button>
             </>) : (
               <button onClick={() => nav("login")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>Log In</button>
@@ -597,147 +610,211 @@ export default function App() {
            ══════════════════════════════════════════════════════════ */}
       {page === "home" && (<>
         {/* ── HERO ── */}
-        <section style={{ minHeight: "90vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "70px 20px" }}>
-          <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow},transparent 60%)`, top: "-10%", right: "-10%" }} />
-          <div style={{ position: "absolute", width: 350, height: 350, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 60%)`, bottom: "10%", left: "-5%" }} />
-          <div style={{ textAlign: "center", maxWidth: 760, position: "relative", zIndex: 1 }}>
-            <div style={{ marginBottom: 32, animation: "fadeUp .5s ease" }}>
-              <img src="/logo.png" alt="CM" style={{ width: 72, height: 72, borderRadius: 18 }} />
+        <section style={{ minHeight: "92vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "80px 20px 60px" }}>
+          {/* Ambient gradient blobs */}
+          <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow},transparent 65%)`, top: "-15%", right: "-15%", animation: "gradientPulse 6s ease infinite", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", width: 450, height: 450, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "5%", left: "-10%", animation: "gradientPulse 8s ease infinite 2s", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 60%)`, top: "30%", left: "10%", animation: "gradientPulse 10s ease infinite 1s", pointerEvents: "none" }} />
+
+          <div style={{ textAlign: "center", maxWidth: 800, position: "relative", zIndex: 1 }}>
+            {/* Logo + badge row */}
+            <div style={{ marginBottom: 28, animation: "fadeUp .5s ease", display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
+              <img src="/logo.png" alt="CM" style={{ width: 52, height: 52, borderRadius: 14, boxShadow: `0 0 0 1px ${C.border}, 0 8px 32px ${C.accentGlow}` }} />
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 99, background: C.accentGlow, border: `1px solid ${C.accent}`, backdropFilter: "blur(12px)" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "gradientPulse 2s ease infinite" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "2px", textTransform: "uppercase" }}>{ct.heroTagline}</span>
+              </div>
             </div>
-            <h1 style={{ fontFamily: D, fontSize: "clamp(36px,6vw,68px)", fontWeight: 700, lineHeight: 1.08, color: C.white, marginBottom: 24, animation: "fadeUp .7s ease" }}>
+
+            <h1 style={{ fontFamily: D, fontSize: "clamp(42px,7vw,80px)", fontWeight: 700, lineHeight: 1.04, letterSpacing: "-0.02em", color: C.white, marginBottom: 28, animation: "fadeUp .7s ease" }}>
               {ct.heroTitle1}{" "}<span key={dark ? "d" : "l"} style={{ fontStyle: "italic", color: C.accent }}>{ct.heroTitleAccent}</span>
             </h1>
-            <p style={{ fontSize: 18, lineHeight: 1.8, color: C.textDim, maxWidth: 520, margin: "0 auto 40px", animation: "fadeUp .9s ease" }}>{ct.heroSubtitle}</p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 1.1s ease" }}>
-              <button onClick={() => nav("contact")} style={{ ...btn, padding: "16px 38px", fontSize: 16 }}>Get a Free Consultation</button>
-              <button onClick={() => nav("services")} style={{ background: "transparent", border: `1.5px solid ${C.border}`, color: C.white, padding: "15px 38px", borderRadius: 9, cursor: "pointer", fontSize: 16, fontWeight: 600, fontFamily: F, transition: "all .2s" }}>View Services →</button>
+
+            <p style={{ fontSize: "clamp(16px,2vw,19px)", lineHeight: 1.75, color: C.textDim, maxWidth: 540, margin: "0 auto 48px", animation: "fadeUp .9s ease", fontWeight: 400 }}>{ct.heroSubtitle}</p>
+
+            <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 1.1s ease" }}>
+              <button
+                onClick={() => nav("contact")}
+                style={{ ...btn, padding: "17px 42px", fontSize: 16, letterSpacing: "0.01em", boxShadow: `0 4px 24px ${C.accentGlow}`, transition: "all .25s ease" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 40px ${C.accentGlow}`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
+              >Get a Free Consultation</button>
+              <button
+                onClick={() => nav("services")}
+                style={{ background: "transparent", border: `1.5px solid ${C.border}`, color: C.white, padding: "16px 42px", borderRadius: 9, cursor: "pointer", fontSize: 16, fontWeight: 600, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.01em" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.white; }}
+              >View Services →</button>
             </div>
           </div>
         </section>
 
+        {/* ── MARQUEE STRIP ── */}
+        <div style={{ overflow: "hidden", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "16px 0", background: C.bgAlt, marginBottom: 0 }}>
+          <div style={{ display: "flex", animation: "marquee 22s linear infinite", width: "max-content", gap: 0 }}>
+            {[...Array(2)].map((_, ri) => (
+              <div key={ri} style={{ display: "flex", gap: 0 }}>
+                {["Brand Identity", "Web Design", "Social Media", "Marketing Strategy", "Content Creation", "SEO & Ads", "Brand Identity", "Web Design", "Social Media", "Marketing Strategy", "Content Creation", "SEO & Ads"].map((item, i) => (
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 20, padding: "0 32px", fontSize: 12, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", color: C.textDim, whiteSpace: "nowrap" }}>
+                    <span style={{ color: C.accent, fontSize: 8 }}>◆</span>{item}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── STATS ── */}
-        <section style={{ maxWidth: 860, margin: "0 auto 60px", padding: "0 20px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14 }}>
+        <section style={{ maxWidth: 900, margin: "0 auto 80px", padding: "60px 20px 0", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
           {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
-            <div key={i} style={{ textAlign: "center", padding: "24px 16px", ...crd, animation: `fadeUp .5s ease ${i*.08}s forwards`, opacity: 0 }}>
-              <div style={{ fontFamily: D, fontSize: 28, fontWeight: 700, color: C.accent, marginBottom: 3 }}>{s.n}</div>
-              <div style={{ fontSize: 12, color: C.textDim, fontWeight: 500 }}>{s.l}</div>
+            <div key={i} className="stat-card" style={{ textAlign: "center", padding: "32px 20px", ...crd, animation: `fadeUp .5s ease ${i*.1}s forwards`, opacity: 0, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent}, transparent)` }} />
+              <div style={{ fontFamily: D, fontSize: 34, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: "-0.02em" }}>{s.n}</div>
+              <div style={{ fontSize: 12, color: C.textDim, fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase" }}>{s.l}</div>
             </div>
           ))}
         </section>
 
         {/* ── SERVICES PREVIEW on Home ── */}
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "40px 20px 60px" }}>
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 10 }}>What We Do</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,4vw,42px)", fontWeight: 700, color: C.white }}>Services Built to Grow Your Brand</h2>
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "40px 20px 80px" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>What We Do</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4.5vw,48px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>Services Built to Grow Your Brand</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 32 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 14, marginBottom: 40 }}>
             {[
-              { icon: "✦", t: "Branding" }, { icon: "◈", t: "Websites" }, { icon: "◉", t: "Social Media" },
-              { icon: "△", t: "Strategy" }, { icon: "□", t: "Content" }, { icon: "◇", t: "SEO & Ads" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>, t: "Branding" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, t: "Websites" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>, t: "Social Media" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: "Strategy" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, t: "Content" },
+              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/><path d="M16 11h-5M11 6v5"/></svg>, t: "SEO & Ads" },
             ].map((s,i) => (
-              <div key={i} onClick={() => nav("services")} style={{ ...crd, padding: "24px 18px", textAlign: "center", cursor: "pointer", transition: "all .3s", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-                <div style={{ fontSize: 22, color: C.accent, marginBottom: 10 }}>{s.icon}</div>
-                <div style={{ fontFamily: D, fontSize: 15, fontWeight: 700, color: C.white }}>{s.t}</div>
+              <div key={i} onClick={() => nav("services")} className="svc-card" style={{ ...crd, padding: "28px 18px 24px", textAlign: "center", cursor: "pointer", transition: "all .3s ease", animation: `fadeUp .4s ease ${i*.07}s forwards`, opacity: 0, boxShadow: "none" }}>
+                <div style={{ color: C.accent, marginBottom: 14, display: "flex", justifyContent: "center" }}>{s.icon}</div>
+                <div style={{ fontFamily: D, fontSize: 15, fontWeight: 700, color: C.white, letterSpacing: "-0.01em" }}>{s.t}</div>
               </div>
             ))}
           </div>
           <div style={{ textAlign: "center" }}>
-            <button onClick={() => nav("contact")} style={{ ...btn, padding: "14px 34px", fontSize: 15 }}>Tell Us About Your Project →</button>
+            <button
+              onClick={() => nav("contact")}
+              style={{ ...btn, padding: "15px 38px", fontSize: 15, letterSpacing: "0.01em", boxShadow: `0 4px 20px ${C.accentGlow}` }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 32px ${C.accentGlow}`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 20px ${C.accentGlow}`; }}
+            >Tell Us About Your Project →</button>
           </div>
         </section>
 
         {/* ── WHY CM — trust section ── */}
-        <section style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px 60px" }}>
-          <div style={{ ...crd, padding: "48px 40px", textAlign: "center", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
-            <img src="/logo.png" alt="CM" style={{ width: 48, height: 48, borderRadius: 12, marginBottom: 20 }} />
-            <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14 }}>Your Brand Deserves Better</h3>
-            <p style={{ color: C.textDim, fontSize: 16, lineHeight: 1.8, maxWidth: 520, margin: "0 auto 28px" }}>
+        <section style={{ maxWidth: 860, margin: "0 auto", padding: "0 20px 90px" }}>
+          <div style={{ ...crd, padding: "60px 48px", textAlign: "center", borderColor: C.accent, position: "relative", overflow: "hidden", background: dark ? `linear-gradient(135deg, ${C.card} 0%, ${C.bgAlt} 100%)` : `linear-gradient(135deg, ${C.card} 0%, ${C.bgAlt} 100%)` }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
+            <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-5%", pointerEvents: "none" }} />
+            <img src="/logo.png" alt="CM" style={{ width: 56, height: 56, borderRadius: 15, marginBottom: 24, boxShadow: `0 0 0 1px ${C.border}` }} />
+            <h3 style={{ fontFamily: D, fontSize: "clamp(24px,3.5vw,36px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>Your Brand Deserves Better</h3>
+            <p style={{ color: C.textDim, fontSize: 17, lineHeight: 1.8, maxWidth: 520, margin: "0 auto 36px" }}>
               We don't do cookie-cutter. Every brand we build is researched, strategized, and crafted specifically for your business and audience. Let's create something worth remembering.
             </p>
-            <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Start Your Project</button>
+            <button
+              onClick={() => nav("contact")}
+              style={{ ...btn, padding: "17px 44px", fontSize: 16, letterSpacing: "0.01em", boxShadow: `0 4px 24px ${C.accentGlow}` }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
+            >Start Your Project</button>
           </div>
         </section>
       </>)}
 
       {/* ══════ SERVICES ══════ */}
       {page === "services" && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
-          <div style={{ textAlign: "center", marginBottom: 52 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>What We Do</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4vw,48px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>{ct.servicesHeading}</h2>
-            <p style={{ color: C.textDim, fontSize: 15, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>{ct.servicesSubheading}</p>
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>What We Do</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>{ct.servicesHeading}</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 520, margin: "0 auto", lineHeight: 1.75 }}>{ct.servicesSubheading}</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18 }}>
             {[
-              { icon: "✦", t: ct.svc1Title, d: ct.svc1Desc, tag: "Branding" },
-              { icon: "◈", t: ct.svc2Title, d: ct.svc2Desc, tag: "Web" },
-              { icon: "◉", t: ct.svc3Title, d: ct.svc3Desc, tag: "Social" },
-              { icon: "△", t: ct.svc4Title, d: ct.svc4Desc, tag: "Strategy" },
-              { icon: "□", t: ct.svc5Title, d: ct.svc5Desc, tag: "Content" },
-              { icon: "◇", t: ct.svc6Title, d: ct.svc6Desc, tag: "Growth" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>, t: ct.svc1Title, d: ct.svc1Desc, tag: "Branding" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, t: ct.svc2Title, d: ct.svc2Desc, tag: "Web" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>, t: ct.svc3Title, d: ct.svc3Desc, tag: "Social" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: ct.svc4Title, d: ct.svc4Desc, tag: "Strategy" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, t: ct.svc5Title, d: ct.svc5Desc, tag: "Content" },
+              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/></svg>, t: ct.svc6Title, d: ct.svc6Desc, tag: "Growth" },
             ].map((s,i) => (
-              <div key={i} style={{ ...crd, padding: "32px 28px", cursor: "default", animation: `fadeUp .45s ease ${i*.06}s forwards`, opacity: 0, position: "relative", overflow: "hidden", transition: "all .3s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
-                <div style={{ position: "absolute", top: 14, right: 18, fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "1.5px", textTransform: "uppercase", opacity: .4 }}>{s.tag}</div>
-                <div style={{ fontSize: 24, marginBottom: 16, color: C.accent }}>{s.icon}</div>
-                <h3 style={{ fontFamily: D, fontSize: 18, fontWeight: 700, color: C.white, marginBottom: 8 }}>{s.t}</h3>
-                <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.75 }}>{s.d}</p>
+              <div key={i} className="svc-card" style={{ ...crd, padding: "36px 32px", cursor: "default", animation: `fadeUp .45s ease ${i*.07}s forwards`, opacity: 0, position: "relative", overflow: "hidden", transition: "all .3s ease", boxShadow: "none" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.accent}60, transparent)`, opacity: 0.7 }} />
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>{s.icon}</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", opacity: .5 }}>{s.tag}</span>
+                </div>
+                <h3 style={{ fontFamily: D, fontSize: 19, fontWeight: 700, color: C.white, marginBottom: 10, letterSpacing: "-0.01em" }}>{s.t}</h3>
+                <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.8 }}>{s.d}</p>
               </div>
             ))}
           </div>
           {/* CTA at bottom of services */}
-          <div style={{ textAlign: "center", marginTop: 48, padding: "48px 32px", ...crd, borderColor: C.accent, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
-            <h3 style={{ fontFamily: D, fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Not Sure What You Need?</h3>
-            <p style={{ color: C.textDim, fontSize: 15, marginBottom: 24, maxWidth: 460, margin: "0 auto 24px" }}>We'll help you figure out the right strategy for your business. No pressure, no commitment — just a conversation.</p>
-            <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Book a Free Consultation →</button>
+          <div style={{ textAlign: "center", marginTop: 56, padding: "56px 40px", ...crd, borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
+            <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-10%", pointerEvents: "none" }} />
+            <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Not Sure What You Need?</h3>
+            <p style={{ color: C.textDim, fontSize: 16, marginBottom: 32, maxWidth: 460, margin: "0 auto 32px", lineHeight: 1.75 }}>We'll help you figure out the right strategy for your business. No pressure, no commitment — just a conversation.</p>
+            <button
+              onClick={() => nav("contact")}
+              style={{ ...btn, padding: "16px 42px", fontSize: 16, boxShadow: `0 4px 24px ${C.accentGlow}` }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
+            >Book a Free Consultation →</button>
           </div>
         </section>
       )}
 
       {/* ══════ ABOUT ══════ */}
       {page === "about" && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
-          <div style={{ textAlign: "center", marginBottom: 52 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>Who We Are</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4vw,48px)", fontWeight: 700, color: C.white }}>{ct.aboutHeading}</h2>
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Who We Are</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>{ct.aboutHeading}</h2>
           </div>
-          <div style={{ ...crd, padding: "40px 36px", maxWidth: 760, margin: "0 auto 36px", animation: "fadeUp .5s ease" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: `linear-gradient(135deg,${C.accent},#a37a1e)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 24 }}>💡</div>
-            <h3 style={{ fontFamily: D, fontSize: 23, color: C.white, fontWeight: 700, marginBottom: 18 }}>Our Story</h3>
-            {[ct.aboutStory1, ct.aboutStory2, ct.aboutStory3].map((p,i) => <p key={i} style={{ color: C.textDim, fontSize: 15, lineHeight: 1.85, marginBottom: i < 2 ? 14 : 0 }}>{p}</p>)}
+          <div style={{ ...crd, padding: "48px 44px", maxWidth: 800, margin: "0 auto 40px", animation: "fadeUp .5s ease", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.accent}, transparent)`, opacity: 0.7 }} />
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: `linear-gradient(135deg,${C.accent}30,${C.accent}10)`, border: `1px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, color: C.accent }}>
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <h3 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 20, letterSpacing: "-0.01em" }}>Our Story</h3>
+            {[ct.aboutStory1, ct.aboutStory2, ct.aboutStory3].map((p,i) => <p key={i} style={{ color: C.textDim, fontSize: 16, lineHeight: 1.9, marginBottom: i < 2 ? 18 : 0 }}>{p}</p>)}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14, maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16, maxWidth: 800, margin: "0 auto" }}>
             {[
-              { icon: "🎯", t: ct.val1Title, d: ct.val1Text },
-              { icon: "🤝", t: ct.val2Title, d: ct.val2Text },
-              { icon: "🚀", t: ct.val3Title, d: ct.val3Text },
-              { icon: "💛", t: ct.val4Title, d: ct.val4Text },
+              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: ct.val1Title, d: ct.val1Text },
+              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>, t: ct.val2Title, d: ct.val2Text },
+              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>, t: ct.val3Title, d: ct.val3Text },
+              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>, t: ct.val4Title, d: ct.val4Text },
             ].map((v,i) => (
-              <div key={i} style={{ ...crd, padding: "24px 20px", display: "flex", gap: 14, alignItems: "flex-start", animation: `fadeUp .4s ease ${i*.08}s forwards`, opacity: 0, transition: "all .3s" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = C.accent}
-                onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
-                <div style={{ fontSize: 22, flexShrink: 0, width: 40, height: 40, borderRadius: 9, background: C.accentGlow, display: "flex", alignItems: "center", justifyContent: "center" }}>{v.icon}</div>
+              <div key={i} className="val-card" style={{ ...crd, padding: "28px 24px", display: "flex", gap: 16, alignItems: "flex-start", animation: `fadeUp .4s ease ${i*.08}s forwards`, opacity: 0, transition: "all .3s ease", boxShadow: "none" }}>
+                <div style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 11, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>{v.icon}</div>
                 <div>
-                  <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 3 }}>{v.t}</h4>
-                  <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.7 }}>{v.d}</p>
+                  <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>{v.t}</h4>
+                  <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.75 }}>{v.d}</p>
                 </div>
               </div>
             ))}
           </div>
           {/* CTA at bottom of about */}
-          <div style={{ textAlign: "center", marginTop: 40, maxWidth: 760, marginLeft: "auto", marginRight: "auto" }}>
-            <div style={{ ...crd, padding: "48px 36px", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: C.accent }} />
-              <img src="/logo.png" alt="CM" style={{ width: 44, height: 44, borderRadius: 11, marginBottom: 18 }} />
-              <h3 style={{ fontFamily: D, fontSize: "clamp(20px,3vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Let's Build Something Great Together</h3>
-              <p style={{ color: C.textDim, fontSize: 15, marginBottom: 24, maxWidth: 440, margin: "0 auto 24px" }}>Ready to take your brand to the next level? Reach out and let's talk about your vision.</p>
-              <button onClick={() => nav("contact")} style={{ ...btn, padding: "15px 36px", fontSize: 15 }}>Get In Touch →</button>
+          <div style={{ textAlign: "center", marginTop: 48, maxWidth: 800, marginLeft: "auto", marginRight: "auto" }}>
+            <div style={{ ...crd, padding: "56px 44px", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
+              <div style={{ position: "absolute", width: 350, height: 350, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-5%", pointerEvents: "none" }} />
+              <img src="/logo.png" alt="CM" style={{ width: 52, height: 52, borderRadius: 14, marginBottom: 22, boxShadow: `0 0 0 1px ${C.border}` }} />
+              <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Let's Build Something Great Together</h3>
+              <p style={{ color: C.textDim, fontSize: 16, marginBottom: 32, maxWidth: 440, margin: "0 auto 32px", lineHeight: 1.75 }}>Ready to take your brand to the next level? Reach out and let's talk about your vision.</p>
+              <button
+                onClick={() => nav("contact")}
+                style={{ ...btn, padding: "16px 42px", fontSize: 16, boxShadow: `0 4px 24px ${C.accentGlow}` }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
+              >Get In Touch →</button>
             </div>
           </div>
         </section>
@@ -745,11 +822,11 @@ export default function App() {
 
       {/* ══════ PROJECTS ══════ */}
       {page === "projects" && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>Portfolio</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4vw,48px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Our Projects</h2>
-            <p style={{ color: C.textDim, fontSize: 15, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>A selection of brands, websites, and campaigns we've brought to life.</p>
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Portfolio</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Our Projects</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 520, margin: "0 auto", lineHeight: 1.75 }}>A selection of brands, websites, and campaigns we've brought to life.</p>
           </div>
 
           {/* Admin: Add Project form */}
@@ -881,8 +958,10 @@ export default function App() {
             </div>
           ) : (
             <div style={{ ...crd, padding: "60px 36px", textAlign: "center" }}>
-              <div style={{ fontSize: 36, marginBottom: 10 }}>🎨</div>
-              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>{isAdmin ? "No Projects Yet" : "Projects Coming Soon"}</h3>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: C.accent }}>
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M2 13.5V20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6.5"/><path d="M12 2v13M8 6l4-4 4 4"/></svg>
+              </div>
+              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>{isAdmin ? "No Projects Yet" : "Projects Coming Soon"}</h3>
               <p style={{ color: C.textDim, fontSize: 13 }}>{isAdmin ? "Add your first project above to showcase your work." : "Check back soon to see our latest work."}</p>
             </div>
           )}
@@ -899,12 +978,13 @@ export default function App() {
 
       {/* ══════ LOGIN ══════ */}
       {page === "login" && !currentUser && (
-        <section style={{ maxWidth: 400, margin: "0 auto", padding: "130px 20px 72px", animation: "fadeUp .4s ease" }}>
-          <div style={{ ...crd, padding: "40px 32px" }}>
-            <div style={{ textAlign: "center", marginBottom: 28 }}>
-              <img src="/logo.png" alt="CM" style={{ width: 48, height: 48, borderRadius: 12, margin: "0 auto 14px", display: "block" }} />
-              <h2 style={{ fontFamily: D, fontSize: 22, color: C.white, fontWeight: 700, marginBottom: 4 }}>Welcome Back</h2>
-              <p style={{ color: C.textDim, fontSize: 13 }}>Sign in to access your portal</p>
+        <section style={{ maxWidth: 420, margin: "0 auto", padding: "130px 20px 80px", animation: "fadeUp .4s ease" }}>
+          <div style={{ ...crd, padding: "48px 40px", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
+            <div style={{ textAlign: "center", marginBottom: 32 }}>
+              <img src="/logo.png" alt="CM" style={{ width: 56, height: 56, borderRadius: 15, margin: "0 auto 18px", display: "block", boxShadow: `0 0 0 1px ${C.border}` }} />
+              <h2 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>Welcome Back</h2>
+              <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.6 }}>Sign in to access your portal</p>
             </div>
             {loginError && <div style={{ background: C.dangerBg, border: `1px solid ${C.danger}`, borderRadius: 7, padding: "9px 12px", marginBottom: 16, color: C.danger, fontSize: 12, fontWeight: 600 }}>{loginError}</div>}
             <div style={{ marginBottom: 14 }}><label style={lbl}>Username</label><input style={inp} placeholder="Enter username" value={loginForm.username} onChange={e => setLoginForm({...loginForm, username: e.target.value})} onKeyDown={e => e.key==="Enter" && handleLogin()} /></div>
@@ -927,10 +1007,10 @@ export default function App() {
            ADMIN PORTAL — 3 tabs: Brands, Users, Site Editor
            ══════════════════════════════════════════════════════════ */}
       {page === "portal" && isAdmin && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 8 }}>Admin Dashboard</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,3.5vw,40px)", fontWeight: 700, color: C.white }}>Brand Portal</h2>
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
+          <div style={{ marginBottom: 36 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 10 }}>Admin Dashboard</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,3.5vw,44px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>Brand Portal</h2>
           </div>
 
           {/* Tabs */}
@@ -1368,22 +1448,25 @@ export default function App() {
 
       {/* ══════ CONTACT ══════ */}
       {page === "contact" && (
-        <section style={{ maxWidth: 700, margin: "0 auto", padding: "92px 20px 72px" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>Get In Touch</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4vw,48px)", fontWeight: 700, color: C.white, marginBottom: 12 }}>Let's Work Together</h2>
-            <p style={{ color: C.textDim, fontSize: 15, maxWidth: 480, margin: "0 auto", lineHeight: 1.7 }}>Tell us about your project and we'll get back to you within 24 hours.</p>
+        <section style={{ maxWidth: 720, margin: "0 auto", padding: "100px 20px 80px" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Get In Touch</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Let's Work Together</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 480, margin: "0 auto", lineHeight: 1.75 }}>Tell us about your project and we'll get back to you within 24 hours.</p>
           </div>
 
           {contactSubmitted ? (
-            <div style={{ ...crd, padding: "60px 40px", textAlign: "center", animation: "fadeUp .5s ease" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-              <h3 style={{ fontFamily: D, fontSize: 24, color: C.white, fontWeight: 700, marginBottom: 10 }}>Message Sent!</h3>
-              <p style={{ color: C.textDim, fontSize: 15, marginBottom: 28, lineHeight: 1.7 }}>Thanks for reaching out. We'll get back to you shortly.</p>
-              <button onClick={() => { setContactSubmitted(false); nav("home"); }} style={{ ...btn, padding: "13px 32px" }}>Back to Home</button>
+            <div style={{ ...crd, padding: "72px 48px", textAlign: "center", animation: "scaleIn .4s ease" }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: C.successBg, border: `1px solid ${C.success}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", color: C.success }}>
+                <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <h3 style={{ fontFamily: D, fontSize: 28, color: C.white, fontWeight: 700, marginBottom: 12, letterSpacing: "-0.02em" }}>Message Sent!</h3>
+              <p style={{ color: C.textDim, fontSize: 16, marginBottom: 36, lineHeight: 1.75 }}>Thanks for reaching out. We'll get back to you shortly.</p>
+              <button onClick={() => { setContactSubmitted(false); nav("home"); }} style={{ ...btn, padding: "14px 36px", fontSize: 15, boxShadow: `0 4px 20px ${C.accentGlow}` }}>Back to Home</button>
             </div>
           ) : (
-            <div style={{ ...crd, padding: "36px 32px", animation: "fadeUp .5s ease" }}>
+            <div style={{ ...crd, padding: "44px 40px", animation: "fadeUp .5s ease", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
               {/* Name row */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div>
@@ -1468,24 +1551,47 @@ export default function App() {
       {/* Not logged in → portal */}
       {page === "portal" && !currentUser && (
         <section style={{ maxWidth: 460, margin: "0 auto", padding: "150px 20px 72px", textAlign: "center" }}>
-          <div style={{ fontSize: 44, marginBottom: 14 }}>🔒</div>
-          <h2 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 10 }}>Login Required</h2>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: C.accent }}>
+            <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h2 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 10, letterSpacing: "-0.01em" }}>Login Required</h2>
           <p style={{ color: C.textDim, fontSize: 14, marginBottom: 24 }}>Sign in to access the brand portal.</p>
           <button onClick={() => nav("login")} style={{ ...btn, padding: "13px 32px", fontSize: 15 }}>Go to Login</button>
         </section>
       )}
 
       {/* ══════ FOOTER ══════ */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "40px 20px", marginTop: 50 }}>
-        <div style={{ maxWidth: 1140, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <img src="/logo.png" alt="CM" style={{ width: 28, height: 28, borderRadius: 7 }} />
-            <span style={{ fontWeight: 600, fontSize: 13, color: C.textDim }}>CM Marketing & Design</span>
+      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "48px 20px 36px", marginTop: 60, background: C.bgAlt }}>
+        <div style={{ maxWidth: 1140, margin: "0 auto" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: 32, marginBottom: 40 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <img src="/logo.png" alt="CM" style={{ width: 32, height: 32, borderRadius: 9, boxShadow: `0 0 0 1px ${C.border}` }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: C.white }}>CM Marketing</div>
+                  <div style={{ fontSize: 9, color: C.accent, letterSpacing: "2px", textTransform: "uppercase", fontWeight: 700 }}>& Design</div>
+                </div>
+              </div>
+              <p style={{ color: C.textDim, fontSize: 13, maxWidth: 280, lineHeight: 1.7 }}>Strategic branding, web design, and marketing for businesses ready to grow.</p>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 14 }}>Navigation</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {["home","services","projects","about","contact"].map(k => (
+                  <button key={k} onClick={() => nav(k)} className="footer-link" style={{ background: "none", border: "none", color: C.textDim, fontSize: 14, cursor: "pointer", fontFamily: F, textTransform: "capitalize", textAlign: "left", padding: 0, transition: "color .2s", width: "fit-content" }}>{k}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 14 }}>Ready to Start?</div>
+              <p style={{ color: C.textDim, fontSize: 13, marginBottom: 16, lineHeight: 1.7 }}>Let's talk about your brand goals.</p>
+              <button onClick={() => nav("contact")} style={{ ...btn, padding: "11px 24px", fontSize: 13 }}>Get a Free Quote</button>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 18 }}>
-            {["home","services","projects","about","contact"].map(k => <button key={k} onClick={() => nav(k)} style={{ background: "none", border: "none", color: C.textDim, fontSize: 12, cursor: "pointer", fontFamily: F, textTransform: "capitalize" }}>{k}</button>)}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div style={{ color: C.textDim, fontSize: 12, opacity: .6 }}>© {new Date().getFullYear()} CM Marketing & Design. All rights reserved.</div>
+            <button onClick={toggleTheme} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 12px", color: C.textDim, fontSize: 12, cursor: "pointer", fontFamily: F, display: "flex", alignItems: "center", gap: 6 }}>{dark ? "☀ Light Mode" : "☽ Dark Mode"}</button>
           </div>
-          <div style={{ color: C.textDim, fontSize: 10, opacity: .4 }}>© {new Date().getFullYear()} CM Marketing & Design</div>
         </div>
       </footer>
     </div>
