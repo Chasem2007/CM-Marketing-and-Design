@@ -5,9 +5,12 @@
 # It also sets up the serverless functions directory.
 
 [build]
-  command = "npm run build"
+  command = "npm install && ./node_modules/.bin/vite build"
   publish = "dist"
   functions = "netlify/functions"
+
+[build.environment]
+  NODE_ENV = "development"
 
 # Single-page app routing — sends all URLs to index.html
 # so React can handle the routing (prevents 404s on page refresh)
