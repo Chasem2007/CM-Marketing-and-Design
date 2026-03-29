@@ -82,7 +82,7 @@ const DEFAULT_CONTENT = {
   heroCta1: "Explore Services",
   heroCta2: "About Us →",
   // Stats
-  stat1Num: "100+", stat1Label: "Brands Created",
+  stat1Num: "100%", stat1Label: "Local Business",
   stat2Num: "5★", stat2Label: "Client Satisfaction",
   stat3Num: "24/7", stat3Label: "Ongoing Support",
   stat4Num: "ROI", stat4Label: "Driven Results",
@@ -781,7 +781,7 @@ export default function App() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {[
-                { n: "100+", l: "Brands Built", d: "From startups to established companies, we've shaped identities that last." },
+                { n: "100%", l: "Local Business", d: "From startups to established companies, we've shaped identities that last." },
                 { n: "5★", l: "Client Satisfaction", d: "Our clients come back — and they bring their friends." },
                 { n: "ROI", l: "Driven Results", d: "Beautiful work is great. Work that grows your revenue is better." },
               ].map((item, i) => (
@@ -860,8 +860,8 @@ export default function App() {
               <p style={{ color: C.text, fontSize: 18, lineHeight: 1.85, fontFamily: D, fontStyle: "italic", marginBottom: 32, borderLeft: `3px solid ${C.accent}`, paddingLeft: 24 }}>"{ct.aboutStory3}"</p>
               <div style={{ display: "flex", gap: 40 }}>
                 <div>
-                  <div style={{ fontFamily: D, fontSize: 40, fontWeight: 700, color: C.accent, letterSpacing: "-0.03em" }}>100+</div>
-                  <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", fontFamily: F }}>Brands Created</div>
+                  <div style={{ fontFamily: D, fontSize: 40, fontWeight: 700, color: C.accent, letterSpacing: "-0.03em" }}>100%</div>
+                  <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", fontFamily: F }}>Local Business</div>
                 </div>
                 <div>
                   <div style={{ fontFamily: D, fontSize: 40, fontWeight: 700, color: C.accent, letterSpacing: "-0.03em" }}>5★</div>
