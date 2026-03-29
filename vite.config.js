@@ -1,17 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-/*
-  VITE CONFIG
-  
-  This tells Vite (your build tool) two things:
-  1. Use the React plugin so it understands JSX syntax
-  2. That's it! Vite handles everything else automatically.
-  
-  Vite replaces the older "Create React App" tooling.
-  It's much faster and doesn't have the security warnings.
-*/
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 });

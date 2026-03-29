@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import storage from "./storage";
+import { FloatingPaths } from "./components/ui/background-paths";
+import { motion } from "framer-motion";
 
 /*
   =====================================================================
@@ -610,42 +612,91 @@ export default function App() {
            ══════════════════════════════════════════════════════════ */}
       {page === "home" && (<>
         {/* ── HERO ── */}
-        <section style={{ minHeight: "92vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", padding: "80px 20px 60px" }}>
-          {/* Ambient gradient blobs */}
-          <div style={{ position: "absolute", width: 700, height: 700, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow},transparent 65%)`, top: "-15%", right: "-15%", animation: "gradientPulse 6s ease infinite", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", width: 450, height: 450, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "5%", left: "-10%", animation: "gradientPulse 8s ease infinite 2s", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 60%)`, top: "30%", left: "10%", animation: "gradientPulse 10s ease infinite 1s", pointerEvents: "none" }} />
+        <section style={{ minHeight: "95vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: dark ? "#0a0a0a" : "#fafaf8" }}>
+          {/* FloatingPaths background */}
+          <div style={{ position: "absolute", inset: 0, opacity: dark ? 0.4 : 0.15 }}>
+            <FloatingPaths position={1} />
+          </div>
+          <div style={{ position: "absolute", inset: 0, opacity: dark ? 0.25 : 0.1 }}>
+            <FloatingPaths position={-1} />
+          </div>
+          {/* Subtle radial vignette */}
+          <div style={{ position: "absolute", inset: 0, background: dark ? "radial-gradient(ellipse at center, transparent 40%, #0a0a0a 100%)" : "radial-gradient(ellipse at center, transparent 40%, #fafaf8 100%)", pointerEvents: "none" }} />
 
-          <div style={{ textAlign: "center", maxWidth: 800, position: "relative", zIndex: 1 }}>
-            {/* Logo + badge row */}
-            <div style={{ marginBottom: 28, animation: "fadeUp .5s ease", display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
-              <img src="/logo.png" alt="CM" style={{ width: 52, height: 52, borderRadius: 14, boxShadow: `0 0 0 1px ${C.border}, 0 8px 32px ${C.accentGlow}` }} />
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 99, background: C.accentGlow, border: `1px solid ${C.accent}`, backdropFilter: "blur(12px)" }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "gradientPulse 2s ease infinite" }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "2px", textTransform: "uppercase" }}>{ct.heroTagline}</span>
+          <div style={{ position: "relative", zIndex: 10, maxWidth: 1100, margin: "0 auto", padding: "0 24px", width: "100%" }}>
+            {/* Eyebrow label */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}
+            >
+              <img src="/logo.png" alt="CM" style={{ width: 32, height: 32, borderRadius: 8 }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 14px", borderRadius: 99, background: dark ? "rgba(221,210,190,0.08)" : "rgba(58,58,58,0.06)", border: `1px solid ${dark ? "rgba(221,210,190,0.2)" : "rgba(58,58,58,0.15)"}` }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, letterSpacing: "2.5px", textTransform: "uppercase", fontFamily: F }}>{ct.heroTagline}</span>
               </div>
+            </motion.div>
+
+            {/* Main heading — animated letter-by-letter */}
+            <div style={{ marginBottom: 32, overflow: "hidden" }}>
+              {[ct.heroTitle1, ct.heroTitleAccent].map((line, lineIdx) => (
+                <div key={lineIdx} style={{ overflow: "hidden", display: "block" }}>
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    transition={{ duration: 0.8, delay: lineIdx * 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    style={{ display: "block" }}
+                  >
+                    <span style={{
+                      fontFamily: D,
+                      fontSize: "clamp(52px,8vw,96px)",
+                      fontWeight: 700,
+                      lineHeight: 1.0,
+                      letterSpacing: "-0.03em",
+                      color: lineIdx === 1 ? C.accent : C.white,
+                      fontStyle: lineIdx === 1 ? "italic" : "normal",
+                      display: "block",
+                    }}>{line}</span>
+                  </motion.div>
+                </div>
+              ))}
             </div>
 
-            <h1 style={{ fontFamily: D, fontSize: "clamp(42px,7vw,80px)", fontWeight: 700, lineHeight: 1.04, letterSpacing: "-0.02em", color: C.white, marginBottom: 28, animation: "fadeUp .7s ease" }}>
-              {ct.heroTitle1}{" "}<span key={dark ? "d" : "l"} style={{ fontStyle: "italic", color: C.accent }}>{ct.heroTitleAccent}</span>
-            </h1>
+            {/* Subtitle + CTA row */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.5 }}
+              style={{ display: "flex", gap: 48, alignItems: "flex-start", flexWrap: "wrap" }}
+            >
+              <p style={{ fontSize: "clamp(15px,1.8vw,18px)", lineHeight: 1.8, color: C.textDim, maxWidth: 420, fontFamily: F, margin: 0, flex: "1 1 300px" }}>{ct.heroSubtitle}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "0 0 auto" }}>
+                <button
+                  onClick={() => nav("contact")}
+                  style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, letterSpacing: "0.02em", transition: "all .25s ease", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+                >Get a Free Consultation</button>
+                <button
+                  onClick={() => nav("services")}
+                  style={{ background: "transparent", border: "none", color: C.textDim, padding: "8px 0", cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: F, textAlign: "left", transition: "all .2s", letterSpacing: "0.01em" }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.accent; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = C.textDim; }}
+                >View Services →</button>
+              </div>
+            </motion.div>
 
-            <p style={{ fontSize: "clamp(16px,2vw,19px)", lineHeight: 1.75, color: C.textDim, maxWidth: 540, margin: "0 auto 48px", animation: "fadeUp .9s ease", fontWeight: 400 }}>{ct.heroSubtitle}</p>
-
-            <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 1.1s ease" }}>
-              <button
-                onClick={() => nav("contact")}
-                style={{ ...btn, padding: "17px 42px", fontSize: 16, letterSpacing: "0.01em", boxShadow: `0 4px 24px ${C.accentGlow}`, transition: "all .25s ease" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 40px ${C.accentGlow}`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
-              >Get a Free Consultation</button>
-              <button
-                onClick={() => nav("services")}
-                style={{ background: "transparent", border: `1.5px solid ${C.border}`, color: C.white, padding: "16px 42px", borderRadius: 9, cursor: "pointer", fontSize: 16, fontWeight: 600, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.01em" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.white; }}
-              >View Services →</button>
-            </div>
+            {/* Bottom scroll indicator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1, delay: 1.2 }}
+              style={{ position: "absolute", bottom: -60, left: 0, display: "flex", alignItems: "center", gap: 10 }}
+            >
+              <div style={{ width: 1, height: 48, background: `linear-gradient(to bottom, ${C.accent}, transparent)` }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", fontFamily: F }}>Scroll</span>
+            </motion.div>
           </div>
         </section>
 
@@ -665,106 +716,127 @@ export default function App() {
         </div>
 
         {/* ── STATS ── */}
-        <section style={{ maxWidth: 900, margin: "0 auto 80px", padding: "60px 20px 0", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
-          {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
-            <div key={i} className="stat-card" style={{ textAlign: "center", padding: "32px 20px", ...crd, animation: `fadeUp .5s ease ${i*.1}s forwards`, opacity: 0, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent}, transparent)` }} />
-              <div style={{ fontFamily: D, fontSize: 34, fontWeight: 700, color: C.accent, marginBottom: 6, letterSpacing: "-0.02em" }}>{s.n}</div>
-              <div style={{ fontSize: 12, color: C.textDim, fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase" }}>{s.l}</div>
-            </div>
-          ))}
-        </section>
-
-        {/* ── SERVICES PREVIEW on Home ── */}
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "40px 20px 80px" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 12 }}>What We Do</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(30px,4.5vw,48px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>Services Built to Grow Your Brand</h2>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 14, marginBottom: 40 }}>
-            {[
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>, t: "Branding" },
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, t: "Websites" },
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>, t: "Social Media" },
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: "Strategy" },
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, t: "Content" },
-              { icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/><path d="M16 11h-5M11 6v5"/></svg>, t: "SEO & Ads" },
-            ].map((s,i) => (
-              <div key={i} onClick={() => nav("services")} className="svc-card" style={{ ...crd, padding: "28px 18px 24px", textAlign: "center", cursor: "pointer", transition: "all .3s ease", animation: `fadeUp .4s ease ${i*.07}s forwards`, opacity: 0, boxShadow: "none" }}>
-                <div style={{ color: C.accent, marginBottom: 14, display: "flex", justifyContent: "center" }}>{s.icon}</div>
-                <div style={{ fontFamily: D, fontSize: 15, fontWeight: 700, color: C.white, letterSpacing: "-0.01em" }}>{s.t}</div>
+        <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "0" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+            {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
+              <div key={i} style={{ padding: "44px 32px", borderRight: i < 3 ? `1px solid ${C.border}` : "none", textAlign: "center" }}>
+                <div style={{ fontFamily: D, fontSize: "clamp(36px,4vw,56px)", fontWeight: 700, color: C.accent, lineHeight: 1, marginBottom: 8, letterSpacing: "-0.03em" }}>{s.n}</div>
+                <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase", fontFamily: F }}>{s.l}</div>
               </div>
             ))}
           </div>
-          <div style={{ textAlign: "center" }}>
+        </section>
+
+        {/* ── SERVICES PREVIEW on Home ── */}
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "100px 24px 80px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 64, gap: 24, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 16, fontFamily: F }}>What We Do</div>
+              <h2 style={{ fontFamily: D, fontSize: "clamp(32px,5vw,58px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.05, margin: 0 }}>Services Built to<br />Grow Your Brand</h2>
+            </div>
             <button
-              onClick={() => nav("contact")}
-              style={{ ...btn, padding: "15px 38px", fontSize: 15, letterSpacing: "0.01em", boxShadow: `0 4px 20px ${C.accentGlow}` }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 32px ${C.accentGlow}`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 20px ${C.accentGlow}`; }}
-            >Tell Us About Your Project →</button>
+              onClick={() => nav("services")}
+              style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textDim, padding: "12px 24px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F, transition: "all .2s", flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textDim; }}
+            >All Services →</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 1, border: `1px solid ${C.border}` }}>
+            {[
+              { num: "01", t: "Branding", d: "Complete brand systems — logos, color palettes, typography, and guidelines." },
+              { num: "02", t: "Web Design", d: "Beautiful, fast, mobile-friendly websites built to convert visitors." },
+              { num: "03", t: "Social Media", d: "Strategic content creation and community management across all platforms." },
+              { num: "04", t: "Strategy", d: "Data-driven marketing plans tailored to your goals and audience." },
+              { num: "05", t: "Content", d: "Compelling copy and visuals that tell your brand story and convert." },
+              { num: "06", t: "SEO & Ads", d: "Get found online with targeted campaigns that maximize your ROI." },
+            ].map((s,i) => (
+              <div key={i} onClick={() => nav("services")} style={{ padding: "36px 32px", background: C.card, borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, cursor: "pointer", transition: "all .25s ease", position: "relative", overflow: "hidden" }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.bgAlt; }}
+                onMouseLeave={e => { e.currentTarget.style.background = C.card; }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "1px", fontFamily: F, marginBottom: 16, opacity: 0.6 }}>{s.num}</div>
+                <h3 style={{ fontFamily: D, fontSize: 22, fontWeight: 700, color: C.white, marginBottom: 10, letterSpacing: "-0.01em" }}>{s.t}</h3>
+                <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.75, fontFamily: F, margin: 0 }}>{s.d}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        {/* ── WHY CM — trust section ── */}
-        <section style={{ maxWidth: 860, margin: "0 auto", padding: "0 20px 90px" }}>
-          <div style={{ ...crd, padding: "60px 48px", textAlign: "center", borderColor: C.accent, position: "relative", overflow: "hidden", background: dark ? `linear-gradient(135deg, ${C.card} 0%, ${C.bgAlt} 100%)` : `linear-gradient(135deg, ${C.card} 0%, ${C.bgAlt} 100%)` }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
-            <div style={{ position: "absolute", width: 300, height: 300, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-5%", pointerEvents: "none" }} />
-            <img src="/logo.png" alt="CM" style={{ width: 56, height: 56, borderRadius: 15, marginBottom: 24, boxShadow: `0 0 0 1px ${C.border}` }} />
-            <h3 style={{ fontFamily: D, fontSize: "clamp(24px,3.5vw,36px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>Your Brand Deserves Better</h3>
-            <p style={{ color: C.textDim, fontSize: 17, lineHeight: 1.8, maxWidth: 520, margin: "0 auto 36px" }}>
-              We don't do cookie-cutter. Every brand we build is researched, strategized, and crafted specifically for your business and audience. Let's create something worth remembering.
-            </p>
-            <button
-              onClick={() => nav("contact")}
-              style={{ ...btn, padding: "17px 44px", fontSize: 16, letterSpacing: "0.01em", boxShadow: `0 4px 24px ${C.accentGlow}` }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
-            >Start Your Project</button>
+        {/* ── WHY CM ── */}
+        <section style={{ padding: "0 24px 100px", maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 80, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+            <div>
+              <div style={{ fontFamily: D, fontSize: "clamp(36px,4vw,52px)", fontWeight: 700, color: C.white, lineHeight: 1.1, letterSpacing: "-0.03em", marginBottom: 28 }}>
+                "We don't do<br /><span style={{ color: C.accent, fontStyle: "italic" }}>cookie-cutter.</span>"
+              </div>
+              <p style={{ color: C.textDim, fontSize: 16, lineHeight: 1.85, fontFamily: F, margin: "0 0 36px" }}>
+                Every brand we build is researched, strategized, and crafted specifically for your business and audience. Let's create something worth remembering.
+              </p>
+              <button
+                onClick={() => nav("contact")}
+                style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "15px 36px", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.02em" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 36px ${C.accentGlow}`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+              >Start Your Project</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {[
+                { n: "100+", l: "Brands Built", d: "From startups to established companies, we've shaped identities that last." },
+                { n: "5★", l: "Client Satisfaction", d: "Our clients come back — and they bring their friends." },
+                { n: "ROI", l: "Driven Results", d: "Beautiful work is great. Work that grows your revenue is better." },
+              ].map((item, i) => (
+                <div key={i} style={{ display: "flex", gap: 20, alignItems: "flex-start", paddingBottom: 24, borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
+                  <div style={{ fontFamily: D, fontSize: 28, fontWeight: 700, color: C.accent, letterSpacing: "-0.02em", flexShrink: 0, minWidth: 60 }}>{item.n}</div>
+                  <div>
+                    <div style={{ fontFamily: F, fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 6 }}>{item.l}</div>
+                    <div style={{ fontFamily: F, fontSize: 14, color: C.textDim, lineHeight: 1.65 }}>{item.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </>)}
 
       {/* ══════ SERVICES ══════ */}
       {page === "services" && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>What We Do</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>{ct.servicesHeading}</h2>
-            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 520, margin: "0 auto", lineHeight: 1.75 }}>{ct.servicesSubheading}</p>
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
+          <div style={{ marginBottom: 80 }}>
+            <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 20, fontFamily: F }}>What We Do</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(40px,6vw,72px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.0, marginBottom: 24, maxWidth: 700 }}>{ct.servicesHeading}</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 500, lineHeight: 1.8, fontFamily: F }}>{ct.servicesSubheading}</p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18 }}>
+          <div style={{ borderTop: `1px solid ${C.border}` }}>
             {[
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>, t: ct.svc1Title, d: ct.svc1Desc, tag: "Branding" },
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, t: ct.svc2Title, d: ct.svc2Desc, tag: "Web" },
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>, t: ct.svc3Title, d: ct.svc3Desc, tag: "Social" },
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: ct.svc4Title, d: ct.svc4Desc, tag: "Strategy" },
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, t: ct.svc5Title, d: ct.svc5Desc, tag: "Content" },
-              { icon: <svg width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M21 21l-4.35-4.35M11 19A8 8 0 1 0 11 3a8 8 0 0 0 0 16z"/></svg>, t: ct.svc6Title, d: ct.svc6Desc, tag: "Growth" },
+              { num: "01", t: ct.svc1Title, d: ct.svc1Desc, tag: "Branding" },
+              { num: "02", t: ct.svc2Title, d: ct.svc2Desc, tag: "Web" },
+              { num: "03", t: ct.svc3Title, d: ct.svc3Desc, tag: "Social" },
+              { num: "04", t: ct.svc4Title, d: ct.svc4Desc, tag: "Strategy" },
+              { num: "05", t: ct.svc5Title, d: ct.svc5Desc, tag: "Content" },
+              { num: "06", t: ct.svc6Title, d: ct.svc6Desc, tag: "Growth" },
             ].map((s,i) => (
-              <div key={i} className="svc-card" style={{ ...crd, padding: "36px 32px", cursor: "default", animation: `fadeUp .45s ease ${i*.07}s forwards`, opacity: 0, position: "relative", overflow: "hidden", transition: "all .3s ease", boxShadow: "none" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.accent}60, transparent)`, opacity: 0.7 }} />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>{s.icon}</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", opacity: .5 }}>{s.tag}</span>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr auto", gap: 32, alignItems: "start", padding: "40px 0", borderBottom: `1px solid ${C.border}`, transition: "all .2s" }}
+                onMouseEnter={e => { e.currentTarget.style.paddingLeft = "12px"; }}
+                onMouseLeave={e => { e.currentTarget.style.paddingLeft = "0"; }}
+              >
+                <div style={{ fontFamily: D, fontSize: 13, color: C.accent, fontWeight: 700, letterSpacing: "0.5px", opacity: 0.5, paddingTop: 4 }}>{s.num}</div>
+                <div>
+                  <h3 style={{ fontFamily: D, fontSize: "clamp(20px,2.5vw,28px)", fontWeight: 700, color: C.white, marginBottom: 12, letterSpacing: "-0.02em" }}>{s.t}</h3>
+                  <p style={{ color: C.textDim, fontSize: 15, lineHeight: 1.8, fontFamily: F, maxWidth: 600 }}>{s.d}</p>
                 </div>
-                <h3 style={{ fontFamily: D, fontSize: 19, fontWeight: 700, color: C.white, marginBottom: 10, letterSpacing: "-0.01em" }}>{s.t}</h3>
-                <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.8 }}>{s.d}</p>
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", opacity: .4, paddingTop: 6, fontFamily: F }}>{s.tag}</span>
               </div>
             ))}
           </div>
-          {/* CTA at bottom of services */}
-          <div style={{ textAlign: "center", marginTop: 56, padding: "56px 40px", ...crd, borderColor: C.accent, position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
-            <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-10%", pointerEvents: "none" }} />
-            <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Not Sure What You Need?</h3>
-            <p style={{ color: C.textDim, fontSize: 16, marginBottom: 32, maxWidth: 460, margin: "0 auto 32px", lineHeight: 1.75 }}>We'll help you figure out the right strategy for your business. No pressure, no commitment — just a conversation.</p>
+          {/* CTA at bottom */}
+          <div style={{ marginTop: 80, padding: "64px 0", borderTop: `1px solid ${C.border}` }}>
+            <h3 style={{ fontFamily: D, fontSize: "clamp(28px,4vw,44px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>Not Sure What You Need?</h3>
+            <p style={{ color: C.textDim, fontSize: 16, marginBottom: 36, maxWidth: 460, lineHeight: 1.75, fontFamily: F }}>We'll help you figure out the right strategy. No pressure, no commitment — just a conversation.</p>
             <button
               onClick={() => nav("contact")}
-              style={{ ...btn, padding: "16px 42px", fontSize: 16, boxShadow: `0 4px 24px ${C.accentGlow}` }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
+              style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.02em" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
             >Book a Free Consultation →</button>
           </div>
         </section>
@@ -772,50 +844,60 @@ export default function App() {
 
       {/* ══════ ABOUT ══════ */}
       {page === "about" && (
-        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Who We Are</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>{ct.aboutHeading}</h2>
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
+          <div style={{ marginBottom: 80 }}>
+            <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 20, fontFamily: F }}>Who We Are</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(40px,6vw,72px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.0, maxWidth: 700 }}>{ct.aboutHeading}</h2>
           </div>
-          <div style={{ ...crd, padding: "48px 44px", maxWidth: 800, margin: "0 auto 40px", animation: "fadeUp .5s ease", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.accent}, transparent)`, opacity: 0.7 }} />
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: `linear-gradient(135deg,${C.accent}30,${C.accent}10)`, border: `1px solid ${C.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24, color: C.accent }}>
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          {/* Story section - two col */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, marginBottom: 80, paddingBottom: 80, borderBottom: `1px solid ${C.border}` }}>
+            <div>
+              <h3 style={{ fontFamily: D, fontSize: 13, fontWeight: 700, color: C.accent, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 24, opacity: 0.7 }}>Our Story</h3>
+              <p style={{ color: C.textDim, fontSize: 16, lineHeight: 1.9, fontFamily: F, marginBottom: 20 }}>{ct.aboutStory1}</p>
+              <p style={{ color: C.textDim, fontSize: 16, lineHeight: 1.9, fontFamily: F }}>{ct.aboutStory2}</p>
             </div>
-            <h3 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 20, letterSpacing: "-0.01em" }}>Our Story</h3>
-            {[ct.aboutStory1, ct.aboutStory2, ct.aboutStory3].map((p,i) => <p key={i} style={{ color: C.textDim, fontSize: 16, lineHeight: 1.9, marginBottom: i < 2 ? 18 : 0 }}>{p}</p>)}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16, maxWidth: 800, margin: "0 auto" }}>
-            {[
-              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>, t: ct.val1Title, d: ct.val1Text },
-              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>, t: ct.val2Title, d: ct.val2Text },
-              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>, t: ct.val3Title, d: ct.val3Text },
-              { icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>, t: ct.val4Title, d: ct.val4Text },
-            ].map((v,i) => (
-              <div key={i} className="val-card" style={{ ...crd, padding: "28px 24px", display: "flex", gap: 16, alignItems: "flex-start", animation: `fadeUp .4s ease ${i*.08}s forwards`, opacity: 0, transition: "all .3s ease", boxShadow: "none" }}>
-                <div style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 11, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>{v.icon}</div>
+            <div style={{ paddingTop: 40 }}>
+              <p style={{ color: C.text, fontSize: 18, lineHeight: 1.85, fontFamily: D, fontStyle: "italic", marginBottom: 32, borderLeft: `3px solid ${C.accent}`, paddingLeft: 24 }}>"{ct.aboutStory3}"</p>
+              <div style={{ display: "flex", gap: 40 }}>
                 <div>
-                  <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>{v.t}</h4>
-                  <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.75 }}>{v.d}</p>
+                  <div style={{ fontFamily: D, fontSize: 40, fontWeight: 700, color: C.accent, letterSpacing: "-0.03em" }}>100+</div>
+                  <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", fontFamily: F }}>Brands Created</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: D, fontSize: 40, fontWeight: 700, color: C.accent, letterSpacing: "-0.03em" }}>5★</div>
+                  <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", fontFamily: F }}>Client Rating</div>
                 </div>
               </div>
-            ))}
-          </div>
-          {/* CTA at bottom of about */}
-          <div style={{ textAlign: "center", marginTop: 48, maxWidth: 800, marginLeft: "auto", marginRight: "auto" }}>
-            <div style={{ ...crd, padding: "56px 44px", borderColor: C.accent, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
-              <div style={{ position: "absolute", width: 350, height: 350, borderRadius: "50%", background: `radial-gradient(circle,${C.accentGlow2},transparent 65%)`, bottom: "-30%", right: "-5%", pointerEvents: "none" }} />
-              <img src="/logo.png" alt="CM" style={{ width: 52, height: 52, borderRadius: 14, marginBottom: 22, boxShadow: `0 0 0 1px ${C.border}` }} />
-              <h3 style={{ fontFamily: D, fontSize: "clamp(22px,3vw,32px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Let's Build Something Great Together</h3>
-              <p style={{ color: C.textDim, fontSize: 16, marginBottom: 32, maxWidth: 440, margin: "0 auto 32px", lineHeight: 1.75 }}>Ready to take your brand to the next level? Reach out and let's talk about your vision.</p>
-              <button
-                onClick={() => nav("contact")}
-                style={{ ...btn, padding: "16px 42px", fontSize: 16, boxShadow: `0 4px 24px ${C.accentGlow}` }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 40px ${C.accentGlow}`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 24px ${C.accentGlow}`; }}
-              >Get In Touch →</button>
             </div>
+          </div>
+          {/* Values */}
+          <div style={{ marginBottom: 80 }}>
+            <h3 style={{ fontFamily: D, fontSize: 13, fontWeight: 700, color: C.accent, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 48, opacity: 0.7 }}>What We Stand For</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 0, border: `1px solid ${C.border}` }}>
+              {[
+                { num: "01", t: ct.val1Title, d: ct.val1Text },
+                { num: "02", t: ct.val2Title, d: ct.val2Text },
+                { num: "03", t: ct.val3Title, d: ct.val3Text },
+                { num: "04", t: ct.val4Title, d: ct.val4Text },
+              ].map((v,i) => (
+                <div key={i} style={{ padding: "36px 32px", borderRight: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ fontFamily: F, fontSize: 10, fontWeight: 700, color: C.accent, letterSpacing: "1px", marginBottom: 20, opacity: 0.5 }}>{v.num}</div>
+                  <h4 style={{ fontFamily: D, fontSize: 20, color: C.white, fontWeight: 700, marginBottom: 12, letterSpacing: "-0.01em" }}>{v.t}</h4>
+                  <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.8, fontFamily: F, margin: 0 }}>{v.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* CTA */}
+          <div style={{ paddingTop: 64, borderTop: `1px solid ${C.border}` }}>
+            <h3 style={{ fontFamily: D, fontSize: "clamp(28px,4vw,44px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.02em" }}>Let's Build Something Great Together</h3>
+            <p style={{ color: C.textDim, fontSize: 16, marginBottom: 36, maxWidth: 440, lineHeight: 1.75, fontFamily: F }}>Ready to take your brand to the next level? Reach out and let's talk about your vision.</p>
+            <button
+              onClick={() => nav("contact")}
+              style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.02em" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+            >Get In Touch →</button>
           </div>
         </section>
       )}
