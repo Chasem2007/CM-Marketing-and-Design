@@ -550,7 +550,7 @@ export default function App() {
   const crd = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 16 };
 
   // ── Loading ────────────────────────────────────────────────────
-  if (loading || !clerkLoaded) return (
+  if (loading) return (
     <div style={{ fontFamily: F, background: C.bg, color: C.white, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
       @keyframes spin{to{transform:rotate(360deg)}}
