@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useUser, useClerk, SignIn, UserButton } from "@clerk/clerk-react";
 import storage from "./storage";
 import { FloatingPaths } from "./components/ui/background-paths";
 import { motion } from "framer-motion";
@@ -14,7 +15,7 @@ import { motion } from "framer-motion";
      Data that survives page reloads. We store 4 things:
      - "cm-users"    → all user accounts (admin + clients)
      - "cm-brands"   → all brand entries with assignments
-     - "cm-session"  → who's currently logged in
+     - auth session  → managed by Clerk
      - "cm-content"  → all editable page text (the CMS data)
   
   🔑 AUTHENTICATION
@@ -112,15 +113,15 @@ const DEFAULT_CONTENT = {
   val4Title: "Your Brand, Our Priority", val4Text: "We take time to understand your story, your values, and your audience. That's how we create work that feels authentically you.",
 };
 
-const DEFAULT_ADMIN = {
-  id: "admin-001", username: "admin", password: "admin123",
-  role: "admin", displayName: "CM Admin", createdAt: new Date().toISOString(),
-};
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN APP COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function App() {
+  // ── Clerk auth ─────────────────────────────────────────────────
+  const { user, isLoaded: clerkLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
+
   // ── State ──────────────────────────────────────────────────────
   /*
     DARK MODE: The 'dark' state variable controls which color palette is active.
@@ -141,15 +142,19 @@ export default function App() {
   };
 
   const [page, setPage] = useState("home");
-  const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [brands, setBrands] = useState([]);
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [editContent, setEditContent] = useState(null); // temp copy while editing
   const [loading, setLoading] = useState(true);
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [loginError, setLoginError] = useState("");
-  const [newUserForm, setNewUserForm] = useState({ username: "", password: "", displayName: "" });
+
+  // ── Derive currentUser from Clerk ──────────────────────────────
+  const currentUser = clerkLoaded && isSignedIn && user ? {
+    id: user.id,
+    role: user.publicMetadata?.role || "client",
+    displayName: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress || "User",
+    username: user.primaryEmailAddress?.emailAddress || user.username || user.id,
+  } : null;
   const [brandForm, setBrandForm] = useState({ name: "", category: "Logo Design", notes: "", assignedTo: "" });
   const [brandImage, setBrandImage] = useState(null);
   const [toast, setToast] = useState(null);
@@ -164,9 +169,20 @@ export default function App() {
   const [brandKitTab, setBrandKitTab] = useState("colors");
   const [copiedHex, setCopiedHex] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [clientTab, setClientTab] = useState("overview");
+  const [newProfileForm, setNewProfileForm] = useState({ userId: "", company: "" });
+  const [invoiceForm, setInvoiceForm] = useState({ title: "", amount: "", dueDate: "", status: "unpaid", url: "", fileData: null, fileName: "" });
+  const [contractForm, setContractForm] = useState({ title: "", signedDate: "", status: "pending", url: "", fileData: null, fileName: "" });
+  const [websiteForm, setWebsiteForm] = useState({ title: "", url: "", liveDate: "", description: "" });
+  const [analyticsForm, setAnalyticsForm] = useState({ title: "", description: "", url: "", fileData: null, fileName: "" });
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
   const projectFileRef = useRef(null);
+  const invoiceFileRef = useRef(null);
+  const contractFileRef = useRef(null);
+  const analyticsFileRef = useRef(null);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000);
@@ -178,52 +194,123 @@ export default function App() {
       try {
         let u;
         try { const d = await storage.get("cm-users"); u = d?.value ? JSON.parse(d.value) : null; } catch(e) { u = null; }
-        if (!u) { u = [DEFAULT_ADMIN]; try { await storage.set("cm-users", JSON.stringify(u)); } catch(e) {} }
+        if (!u) { u = []; try { await storage.set("cm-users", JSON.stringify(u)); } catch(e) {} }
         setUsers(u);
 
         try { const d = await storage.get("cm-brands"); if (d?.value) setBrands(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-projects"); if (d?.value) setProjects(JSON.parse(d.value)); } catch(e) {}
-        try { const d = await storage.get("cm-session"); if (d?.value) setCurrentUser(JSON.parse(d.value)); } catch(e) {}
+        try { const d = await storage.get("cm-profiles"); if (d?.value) setProfiles(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-content"); if (d?.value) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(d.value) }); } catch(e) {}
       } catch(e) {}
       setLoading(false);
     })();
   }, []);
 
+  // ── Auto-register Clerk user in local storage on sign-in ───────
+  useEffect(() => {
+    if (!clerkLoaded || !isSignedIn || !user) return;
+    const mapped = {
+      id: user.id,
+      role: user.publicMetadata?.role || "client",
+      displayName: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress || "User",
+      username: user.primaryEmailAddress?.emailAddress || user.username || user.id,
+      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+    };
+    setUsers(prev => {
+      if (prev.some(u => u.id === user.id)) {
+        const updated = prev.map(u => u.id === user.id ? { ...u, ...mapped } : u);
+        storage.set("cm-users", JSON.stringify(updated)).catch(() => {});
+        return updated;
+      }
+      const updated = [...prev, mapped];
+      storage.set("cm-users", JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, [clerkLoaded, isSignedIn, user]);
+
+  // ── Redirect to home on sign-out if on protected page ─────────
+  useEffect(() => {
+    if (clerkLoaded && !isSignedIn && (page === "portal" || page === "brand" || page === "client")) {
+      setPage("home");
+    }
+  }, [clerkLoaded, isSignedIn]);
+
+  // ── Redirect after sign-in (admin → portal, client → client page) ─
+  useEffect(() => {
+    if (clerkLoaded && isSignedIn && page === "login") {
+      const role = user?.publicMetadata?.role || "client";
+      setPage(role === "admin" ? "portal" : "client");
+    }
+  }, [clerkLoaded, isSignedIn]);
+
   // ── Save helpers ───────────────────────────────────────────────
   const saveUsers = async (v) => { setUsers(v); try { await storage.set("cm-users", JSON.stringify(v)); } catch(e) {} };
   const saveBrands = async (v) => { setBrands(v); try { await storage.set("cm-brands", JSON.stringify(v)); } catch(e) {} };
   const saveProjects = async (v) => { setProjects(v); try { await storage.set("cm-projects", JSON.stringify(v)); } catch(e) {} };
+  const saveProfiles = async (v) => { setProfiles(v); try { await storage.set("cm-profiles", JSON.stringify(v)); } catch(e) {} };
   const saveContent = async (v) => { setContent(v); try { await storage.set("cm-content", JSON.stringify(v)); } catch(e) {} };
 
-  // ── Auth ───────────────────────────────────────────────────────
-  const handleLogin = async () => {
-    setLoginError("");
-    const u = users.find(x => x.username.toLowerCase() === loginForm.username.toLowerCase() && x.password === loginForm.password);
-    if (!u) { setLoginError("Invalid username or password"); return; }
-    setCurrentUser(u);
-    try { await storage.set("cm-session", JSON.stringify(u)); } catch(e) {}
-    setLoginForm({ username: "", password: "" }); setPage("portal");
-    showToast(`Welcome, ${u.displayName}!`);
+  // ── Profile helpers ────────────────────────────────────────────
+  const updateProfile = async (id, updates) => {
+    const updated = profiles.map(p => p.id === id ? { ...p, ...updates } : p);
+    await saveProfiles(updated);
   };
-  const handleLogout = async () => {
-    setCurrentUser(null); try { await storage.delete("cm-session"); } catch(e) {}
-    setPage("home"); showToast("Logged out");
+  const createProfile = async () => {
+    if (!newProfileForm.userId) { showToast("Select a user", "error"); return; }
+    if (profiles.some(p => p.userId === newProfileForm.userId)) { showToast("Profile already exists for this user", "error"); return; }
+    const np = { id: `prof-${Date.now()}`, userId: newProfileForm.userId, company: newProfileForm.company.trim(), invoices: [], contracts: [], websites: [], analytics: [], notes: "", createdAt: new Date().toISOString() };
+    await saveProfiles([...profiles, np]);
+    setNewProfileForm({ userId: "", company: "" });
+    showToast("Client profile created!");
   };
+  const deleteProfile = async (id) => {
+    await saveProfiles(profiles.filter(p => p.id !== id));
+    if (selectedProfileId === id) setSelectedProfileId(null);
+    showToast("Profile deleted");
+  };
+  const addInvoice = async (profId) => {
+    if (!invoiceForm.title.trim()) return;
+    const prof = profiles.find(p => p.id === profId);
+    const item = { id: `inv-${Date.now()}`, ...invoiceForm };
+    await updateProfile(profId, { invoices: [...(prof.invoices || []), item] });
+    setInvoiceForm({ title: "", amount: "", dueDate: "", status: "unpaid", url: "", fileData: null, fileName: "" });
+    showToast("Invoice added");
+  };
+  const removeInvoice = async (profId, id) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { invoices: (p.invoices||[]).filter(i => i.id !== id) }); };
+  const addContract = async (profId) => {
+    if (!contractForm.title.trim()) return;
+    const prof = profiles.find(p => p.id === profId);
+    const item = { id: `con-${Date.now()}`, ...contractForm };
+    await updateProfile(profId, { contracts: [...(prof.contracts || []), item] });
+    setContractForm({ title: "", signedDate: "", status: "pending", url: "", fileData: null, fileName: "" });
+    showToast("Contract added");
+  };
+  const removeContract = async (profId, id) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { contracts: (p.contracts||[]).filter(c => c.id !== id) }); };
+  const addWebsite = async (profId) => {
+    if (!websiteForm.title.trim() || !websiteForm.url.trim()) return;
+    const prof = profiles.find(p => p.id === profId);
+    const item = { id: `web-${Date.now()}`, ...websiteForm };
+    await updateProfile(profId, { websites: [...(prof.websites || []), item] });
+    setWebsiteForm({ title: "", url: "", liveDate: "", description: "" });
+    showToast("Website added");
+  };
+  const removeWebsite = async (profId, id) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { websites: (p.websites||[]).filter(w => w.id !== id) }); };
+  const addAnalyticsItem = async (profId) => {
+    if (!analyticsForm.title.trim()) return;
+    const prof = profiles.find(p => p.id === profId);
+    const item = { id: `ana-${Date.now()}`, ...analyticsForm };
+    await updateProfile(profId, { analytics: [...(prof.analytics || []), item] });
+    setAnalyticsForm({ title: "", description: "", url: "", fileData: null, fileName: "" });
+    showToast("Report added");
+  };
+  const removeAnalyticsItem = async (profId, id) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { analytics: (p.analytics||[]).filter(a => a.id !== id) }); };
 
   // ── Admin: users ───────────────────────────────────────────────
-  const handleCreateUser = async () => {
-    if (!newUserForm.username.trim() || !newUserForm.password.trim()) return;
-    if (users.some(u => u.username.toLowerCase() === newUserForm.username.toLowerCase())) { showToast("Username taken", "error"); return; }
-    const nu = { id: `u-${Date.now()}`, username: newUserForm.username.trim(), password: newUserForm.password, role: "client", displayName: newUserForm.displayName.trim() || newUserForm.username.trim(), createdAt: new Date().toISOString() };
-    await saveUsers([...users, nu]); setNewUserForm({ username: "", password: "", displayName: "" });
-    showToast(`User "${nu.displayName}" created!`);
-  };
   const handleDeleteUser = async (id) => {
-    if (id === "admin-001") return;
+    if (id === currentUser?.id) return;
     await saveUsers(users.filter(u => u.id !== id));
     await saveBrands(brands.map(b => ({ ...b, assignedTo: (b.assignedTo || []).filter(x => x !== id) })));
-    showToast("User deleted");
+    showToast("User removed");
   };
 
   // ── Admin: brands ──────────────────────────────────────────────
@@ -451,6 +538,9 @@ export default function App() {
   const isClient = currentUser?.role === "client";
   const clientBrands = brands.filter(b => (b.assignedTo || []).includes(currentUser?.id));
   const clientUsers = users.filter(u => u.role === "client");
+  const myProfile = profiles.find(p => p.userId === currentUser?.id);
+  const selectedProfile = profiles.find(p => p.id === selectedProfileId);
+  const profileUser = (p) => users.find(u => u.id === p?.userId);
   const ct = content; // shorthand for reading content in JSX
 
   // ── Styles ─────────────────────────────────────────────────────
@@ -460,7 +550,7 @@ export default function App() {
   const crd = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 16 };
 
   // ── Loading ────────────────────────────────────────────────────
-  if (loading) return (
+  if (loading || !clerkLoaded) return (
     <div style={{ fontFamily: F, background: C.bg, color: C.white, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
       @keyframes spin{to{transform:rotate(360deg)}}
@@ -533,8 +623,8 @@ export default function App() {
             <button onClick={toggleTheme} title={dark ? "Switch to light mode" : "Switch to dark mode"} style={{ width: 34, height: 34, borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}`, color: C.accent, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .3s ease", marginLeft: 2 }}>{dark ? "☀" : "☽"}</button>
             {currentUser ? (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 6 }}>
-                <button onClick={() => nav("portal")} style={{ background: page==="portal" ? C.accentGlow : "transparent", border: `1px solid ${page==="portal" ? C.accent : C.border}`, color: page==="portal" ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F, transition: "all .2s" }}>{isAdmin ? "Admin" : "My Brands"}</button>
-                <button onClick={handleLogout} title={`Logout (${currentUser.displayName})`} style={{ width: 32, height: 32, borderRadius: 8, background: isAdmin ? C.accentGlow : "rgba(59,130,246,0.12)", border: `1px solid ${isAdmin ? C.accent : C.blue}`, color: isAdmin ? C.accent : C.blue, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F }}>{currentUser.displayName.charAt(0).toUpperCase()}</button>
+                <button onClick={() => nav(isAdmin ? "portal" : "client")} style={{ background: (page==="portal"||page==="client") ? C.accentGlow : "transparent", border: `1px solid ${(page==="portal"||page==="client") ? C.accent : C.border}`, color: (page==="portal"||page==="client") ? C.accent : C.textDim, padding: "7px 14px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F, transition: "all .2s" }}>{isAdmin ? "Admin" : "My Portal"}</button>
+                <UserButton afterSignOutUrl="/" />
               </div>
             ) : (
               <button onClick={() => nav("login")} style={{ ...btn, padding: "8px 20px", fontSize: 13, marginLeft: 6 }}>Log In</button>
@@ -596,8 +686,8 @@ export default function App() {
           {/* Portal / Login button in mobile menu */}
           <div style={{ paddingTop: 12, display: "flex", gap: 8 }}>
             {currentUser ? (<>
-              <button onClick={() => nav("portal")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>{isAdmin ? "Admin Portal" : "My Brands"}</button>
-              <button onClick={() => { handleLogout(); setMenuOpen(false); }} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "12px 16px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>Log Out</button>
+              <button onClick={() => nav(isAdmin ? "portal" : "client")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>{isAdmin ? "Admin Portal" : "My Portal"}</button>
+              <button onClick={() => { signOut(); setMenuOpen(false); }} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "12px 16px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>Log Out</button>
             </>) : (
               <button onClick={() => nav("login")} style={{ ...btn, flex: 1, padding: "12px", fontSize: 14, textAlign: "center" }}>Log In</button>
             )}
@@ -1060,19 +1150,8 @@ export default function App() {
 
       {/* ══════ LOGIN ══════ */}
       {page === "login" && !currentUser && (
-        <section style={{ maxWidth: 420, margin: "0 auto", padding: "130px 20px 80px", animation: "fadeUp .4s ease" }}>
-          <div style={{ ...crd, padding: "48px 40px", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${C.accent} 40%, ${C.accent} 60%, transparent)` }} />
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <img src="/logo.png" alt="CM" style={{ width: 56, height: 56, borderRadius: 15, margin: "0 auto 18px", display: "block", boxShadow: `0 0 0 1px ${C.border}` }} />
-              <h2 style={{ fontFamily: D, fontSize: 26, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>Welcome Back</h2>
-              <p style={{ color: C.textDim, fontSize: 14, lineHeight: 1.6 }}>Sign in to access your portal</p>
-            </div>
-            {loginError && <div style={{ background: C.dangerBg, border: `1px solid ${C.danger}`, borderRadius: 7, padding: "9px 12px", marginBottom: 16, color: C.danger, fontSize: 12, fontWeight: 600 }}>{loginError}</div>}
-            <div style={{ marginBottom: 14 }}><label style={lbl}>Username</label><input style={inp} placeholder="Enter username" value={loginForm.username} onChange={e => setLoginForm({...loginForm, username: e.target.value})} onKeyDown={e => e.key==="Enter" && handleLogin()} /></div>
-            <div style={{ marginBottom: 22 }}><label style={lbl}>Password</label><input type="password" style={inp} placeholder="Enter password" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} onKeyDown={e => e.key==="Enter" && handleLogin()} /></div>
-            <button onClick={handleLogin} style={{ ...btn, width: "100%", padding: "13px" }}>Sign In</button>
-          </div>
+        <section style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "100px 20px 80px", animation: "fadeUp .4s ease" }}>
+          <SignIn routing="hash" appearance={{ elements: { footerAction: { display: "none" } } }} />
         </section>
       )}
       {page === "login" && currentUser && (
@@ -1080,7 +1159,7 @@ export default function App() {
           <p style={{ color: C.textDim, marginBottom: 16 }}>Already logged in as <b style={{ color: C.white }}>{currentUser.displayName}</b></p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
             <button onClick={() => nav("portal")} style={btn}>Go to Portal</button>
-            <button onClick={handleLogout} style={{ ...btn, background: "transparent", border: `1.5px solid ${C.border}`, color: C.white }}>Log Out</button>
+            <button onClick={() => signOut()} style={{ ...btn, background: "transparent", border: `1.5px solid ${C.border}`, color: C.white }}>Log Out</button>
           </div>
         </section>
       )}
@@ -1097,7 +1176,7 @@ export default function App() {
 
           {/* Tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            {[{ k: "brands", l: `Brands (${brands.length})`, i: "✦" }, { k: "users", l: `Users (${clientUsers.length})`, i: "◉" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
+            {[{ k: "brands", l: `Brands (${brands.length})`, i: "✦" }, { k: "clients", l: `Clients (${profiles.length})`, i: "◎" }, { k: "users", l: `Users (${clientUsers.length})`, i: "◉" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
               <button key={t.k} onClick={() => { setAdminTab(t.k); if (t.k === "editor" && !editContent) startEditing(); }} style={{ background: adminTab===t.k ? C.accentGlow : C.card, border: `1px solid ${adminTab===t.k ? C.accent : C.border}`, color: adminTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
             ))}
           </div>
@@ -1156,15 +1235,11 @@ export default function App() {
 
           {/* ── USERS TAB ── */}
           {adminTab === "users" && (<>
-            <div style={{ ...crd, padding: "32px 28px", marginBottom: 28 }}>
-              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 20 }}>+ Create Client Account</h3>
-              <p style={{ color: C.textDim, fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>Clients log in and see only brands you assign to them.</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 18 }}>
-                <div><label style={lbl}>Username *</label><input style={inp} placeholder="johndoe" value={newUserForm.username} onChange={e => setNewUserForm({...newUserForm, username: e.target.value})} /></div>
-                <div><label style={lbl}>Password *</label><input style={inp} placeholder="Create password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} /></div>
-                <div><label style={lbl}>Display Name</label><input style={inp} placeholder="John Doe" value={newUserForm.displayName} onChange={e => setNewUserForm({...newUserForm, displayName: e.target.value})} /></div>
-              </div>
-              <button onClick={handleCreateUser} disabled={!newUserForm.username.trim()||!newUserForm.password.trim()} style={{ ...btn, opacity: (newUserForm.username.trim()&&newUserForm.password.trim()) ? 1 : .4 }}>Create Account</button>
+            <div style={{ ...crd, padding: "24px 28px", marginBottom: 28 }}>
+              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 12 }}>Client Accounts</h3>
+              <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.7 }}>
+                User accounts are managed through <strong style={{ color: C.white }}>Clerk Dashboard</strong>. Clients who have signed in appear below — assign brands to them from the Brands tab. To grant admin access, set <code style={{ background: C.bgAlt, padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>publicMetadata.role = "admin"</code> in Clerk.
+              </p>
             </div>
             <div style={{ display: "grid", gap: 10 }}>
               {users.map((u,i) => { const ac = brands.filter(b => (b.assignedTo||[]).includes(u.id)).length; return (
@@ -1173,13 +1248,338 @@ export default function App() {
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: u.role==="admin" ? C.accentGlow : "rgba(59,130,246,0.1)", border: `1px solid ${u.role==="admin" ? C.accent : C.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: u.role==="admin" ? C.accent : C.blue }}>{u.displayName?.charAt(0).toUpperCase()}</div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14, color: C.white }}>{u.displayName} <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: u.role==="admin" ? C.accentGlow : "rgba(59,130,246,0.1)", color: u.role==="admin" ? C.accent : C.blue, textTransform: "uppercase", letterSpacing: "1px" }}>{u.role}</span></div>
-                      <div style={{ fontSize: 12, color: C.textDim }}>@{u.username} · {ac} brand{ac!==1?"s":""}</div>
+                      <div style={{ fontSize: 12, color: C.textDim }}>{u.username} · {ac} brand{ac!==1?"s":""}</div>
                     </div>
                   </div>
-                  {u.role !== "admin" && <button onClick={() => handleDeleteUser(u.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "5px 12px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Delete</button>}
+                  {u.id !== currentUser?.id && <button onClick={() => handleDeleteUser(u.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "5px 12px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Remove</button>}
                 </div>
               ); })}
             </div>
+          </>)}
+
+          {/* ══════════════════════════════════════════════════════
+               CLIENTS TAB
+               ══════════════════════════════════════════════════════ */}
+          {adminTab === "clients" && (<>
+            {/* Profile list / create — when no profile is selected */}
+            {!selectedProfileId && (<>
+              {/* Create form */}
+              <div style={{ ...crd, padding: "28px 28px", marginBottom: 24 }}>
+                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>+ New Client Profile</h3>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a profile for a client who has signed in. Their deliverables will appear in their portal.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 18 }}>
+                  <div>
+                    <label style={lbl}>Client Account *</label>
+                    <select style={{ ...inp, cursor: "pointer" }} value={newProfileForm.userId} onChange={e => setNewProfileForm({ ...newProfileForm, userId: e.target.value })}>
+                      <option value="">— Select user —</option>
+                      {clientUsers.filter(u => !profiles.some(p => p.userId === u.id)).map(u => (
+                        <option key={u.id} value={u.id}>{u.displayName} ({u.username})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Company / Business Name</label>
+                    <input style={inp} placeholder="e.g. Acme Corp" value={newProfileForm.company} onChange={e => setNewProfileForm({ ...newProfileForm, company: e.target.value })} />
+                  </div>
+                </div>
+                <button onClick={createProfile} disabled={!newProfileForm.userId} style={{ ...btn, opacity: newProfileForm.userId ? 1 : .4 }}>Create Profile</button>
+              </div>
+              {/* Profile cards */}
+              {!profiles.length ? (
+                <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No client profiles yet. Create one above.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+                  {profiles.map((p,i) => {
+                    const pu = profileUser(p);
+                    const brandCount = brands.filter(b => (b.assignedTo||[]).includes(p.userId)).length;
+                    return (
+                      <div key={p.id} style={{ ...crd, padding: "24px", cursor: "pointer", transition: "all .25s", animation: `fadeUp .35s ease ${i*.05}s forwards`, opacity: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 10, background: C.accentGlow, border: `1px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, color: C.accent }}>
+                            {(pu?.displayName || "?").charAt(0).toUpperCase()}
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); deleteProfile(p.id); }} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Delete</button>
+                        </div>
+                        <div style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700, marginBottom: 2 }}>{pu?.displayName || "Unknown"}</div>
+                        {p.company && <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10 }}>{p.company}</div>}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                          {[
+                            { label: `${brandCount} brand${brandCount!==1?"s":""}`, color: C.accent },
+                            { label: `${(p.invoices||[]).length} invoice${(p.invoices||[]).length!==1?"s":""}`, color: C.blue },
+                            { label: `${(p.contracts||[]).length} contract${(p.contracts||[]).length!==1?"s":""}`, color: C.purple },
+                          ].map(t => (
+                            <span key={t.label} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: `${t.color}12`, color: t.color, textTransform: "uppercase", letterSpacing: "0.5px" }}>{t.label}</span>
+                          ))}
+                        </div>
+                        <button onClick={() => { setSelectedProfileId(p.id); setClientTab("overview"); }} style={{ ...btn, width: "100%", padding: "9px", fontSize: 12, textAlign: "center" }}>Edit Profile →</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>)}
+
+            {/* Profile editor — when a profile is selected */}
+            {selectedProfileId && selectedProfile && (() => {
+              const pu = profileUser(selectedProfile);
+              const profBrands = brands.filter(b => (b.assignedTo||[]).includes(selectedProfile.userId));
+              return (
+                <>
+                  {/* Back + header */}
+                  <div style={{ marginBottom: 28 }}>
+                    <button onClick={() => setSelectedProfileId(null)} style={{ background: "none", border: "none", color: C.textDim, fontSize: 13, cursor: "pointer", fontFamily: F, marginBottom: 16, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← All Profiles</button>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                      <div>
+                        <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 6 }}>Client Profile</div>
+                        <h3 style={{ fontFamily: D, fontSize: 28, color: C.white, fontWeight: 700 }}>{pu?.displayName || "Unknown"}</h3>
+                        {selectedProfile.company && <div style={{ color: C.textDim, fontSize: 14 }}>{selectedProfile.company}</div>}
+                      </div>
+                      {/* Editable company name */}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input style={{ ...inp, width: 200 }} placeholder="Company name" defaultValue={selectedProfile.company}
+                          onBlur={e => { if (e.target.value !== selectedProfile.company) updateProfile(selectedProfile.id, { company: e.target.value }); }} />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Sub-tabs */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
+                    {[
+                      { k: "overview", l: "Overview", i: "◈" },
+                      { k: "brands", l: `Brands (${profBrands.length})`, i: "✦" },
+                      { k: "invoices", l: `Invoices (${(selectedProfile.invoices||[]).length})`, i: "◆" },
+                      { k: "contracts", l: `Contracts (${(selectedProfile.contracts||[]).length})`, i: "◉" },
+                      { k: "websites", l: `Websites (${(selectedProfile.websites||[]).length})`, i: "⊕" },
+                      { k: "analytics", l: `Analytics (${(selectedProfile.analytics||[]).length})`, i: "▲" },
+                    ].map(t => (
+                      <button key={t.k} onClick={() => setClientTab(t.k)} style={{ background: clientTab===t.k ? C.accentGlow : C.card, border: `1px solid ${clientTab===t.k ? C.accent : C.border}`, color: clientTab===t.k ? C.accent : C.textDim, padding: "9px 18px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
+                    ))}
+                  </div>
+
+                  {/* Overview */}
+                  {clientTab === "overview" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14 }}>
+                      {[
+                        { label: "Brands", count: profBrands.length, icon: "✦", color: C.accent, tab: "brands" },
+                        { label: "Invoices", count: (selectedProfile.invoices||[]).length, icon: "◆", color: C.blue, tab: "invoices" },
+                        { label: "Contracts", count: (selectedProfile.contracts||[]).length, icon: "◉", color: C.purple, tab: "contracts" },
+                        { label: "Websites", count: (selectedProfile.websites||[]).length, icon: "⊕", color: C.success, tab: "websites" },
+                        { label: "Analytics", count: (selectedProfile.analytics||[]).length, icon: "▲", color: "#f97316", tab: "analytics" },
+                      ].map(s => (
+                        <div key={s.tab} onClick={() => setClientTab(s.tab)} style={{ ...crd, padding: "24px 20px", cursor: "pointer", transition: "all .2s" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}>
+                          <div style={{ fontSize: 22, color: s.color, marginBottom: 8 }}>{s.icon}</div>
+                          <div style={{ fontFamily: D, fontSize: 28, fontWeight: 700, color: C.white, marginBottom: 2 }}>{s.count}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "1px" }}>{s.label}</div>
+                        </div>
+                      ))}
+                      {/* Admin notes */}
+                      <div style={{ ...crd, padding: "20px", gridColumn: "1/-1" }}>
+                        <label style={lbl}>Internal Notes (not visible to client)</label>
+                        <textarea style={{ ...inp, minHeight: 80, resize: "vertical" }} placeholder="Notes about this client..." defaultValue={selectedProfile.notes}
+                          onBlur={e => { if (e.target.value !== selectedProfile.notes) updateProfile(selectedProfile.id, { notes: e.target.value }); }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Brands */}
+                  {clientTab === "brands" && (
+                    <div>
+                      <div style={{ ...crd, padding: "16px 20px", marginBottom: 16, color: C.textDim, fontSize: 13 }}>
+                        Brands are assigned in the <button onClick={() => setAdminTab("brands")} style={{ background: "none", border: "none", color: C.accent, fontWeight: 600, cursor: "pointer", fontFamily: F, fontSize: 13, padding: 0 }}>Brands tab</button> — toggle the client's name on any brand.
+                      </div>
+                      {!profBrands.length ? (
+                        <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No brands assigned to this client yet.</div>
+                      ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
+                          {profBrands.map(b => (
+                            <div key={b.id} onClick={() => openBrand(b.id)} style={{ ...crd, overflow: "hidden", cursor: "pointer", transition: "all .25s" }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}>
+                              {b.image ? <img src={b.image} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} /> : <div style={{ height: 80, background: `linear-gradient(135deg,${b.color}20,${b.color}08)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: D, fontSize: 28, fontWeight: 700, color: b.color, opacity: .4 }}>{b.name.charAt(0)}</div>}
+                              <div style={{ padding: "16px 18px" }}>
+                                <div style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 4 }}>{b.name}</div>
+                                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: `${b.color}12`, color: b.color }}>{b.category}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Invoices */}
+                  {clientTab === "invoices" && (
+                    <div>
+                      <div style={{ ...crd, padding: "24px 24px", marginBottom: 20 }}>
+                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Invoice</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 14 }}>
+                          <div><label style={lbl}>Title *</label><input style={inp} placeholder="Invoice #001" value={invoiceForm.title} onChange={e => setInvoiceForm({...invoiceForm, title: e.target.value})} /></div>
+                          <div><label style={lbl}>Amount</label><input style={inp} placeholder="$1,200.00" value={invoiceForm.amount} onChange={e => setInvoiceForm({...invoiceForm, amount: e.target.value})} /></div>
+                          <div><label style={lbl}>Due Date</label><input style={inp} placeholder="Jan 1, 2025" value={invoiceForm.dueDate} onChange={e => setInvoiceForm({...invoiceForm, dueDate: e.target.value})} /></div>
+                          <div><label style={lbl}>Status</label>
+                            <select style={{ ...inp, cursor: "pointer" }} value={invoiceForm.status} onChange={e => setInvoiceForm({...invoiceForm, status: e.target.value})}>
+                              <option value="unpaid">Unpaid</option>
+                              <option value="pending">Pending</option>
+                              <option value="paid">Paid</option>
+                            </select>
+                          </div>
+                          <div><label style={lbl}>Link URL</label><input style={inp} placeholder="https://..." value={invoiceForm.url} onChange={e => setInvoiceForm({...invoiceForm, url: e.target.value})} /></div>
+                        </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <button onClick={() => addInvoice(selectedProfile.id)} disabled={!invoiceForm.title.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: invoiceForm.title.trim() ? 1 : .4 }}>Add Invoice</button>
+                          <input type="file" ref={invoiceFileRef} accept=".pdf,image/*" onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onloadend = () => setInvoiceForm(prev => ({...prev, fileData: r.result, fileName: f.name})); r.readAsDataURL(f); e.target.value = ""; }} style={{ display: "none" }} />
+                          <button onClick={() => invoiceFileRef.current.click()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>
+                            {invoiceForm.fileName ? `📎 ${invoiceForm.fileName}` : "📎 Attach File"}
+                          </button>
+                          {invoiceForm.fileName && <button onClick={() => setInvoiceForm(prev => ({...prev, fileData: null, fileName: ""}))} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", fontSize: 12 }}>✕</button>}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {!(selectedProfile.invoices||[]).length && <div style={{ ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No invoices yet.</div>}
+                        {(selectedProfile.invoices||[]).map((inv,i) => (
+                          <div key={inv.id} style={{ ...crd, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                                <span style={{ fontWeight: 600, fontSize: 14, color: C.white }}>{inv.title}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: inv.status==="paid" ? C.successBg : inv.status==="pending" ? "rgba(251,191,36,0.1)" : C.dangerBg, color: inv.status==="paid" ? C.success : inv.status==="pending" ? "#fbbf24" : C.danger }}>{inv.status}</span>
+                              </div>
+                              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                                {inv.amount && <span style={{ fontSize: 12, color: C.textDim }}>Amount: <b style={{ color: C.white }}>{inv.amount}</b></span>}
+                                {inv.dueDate && <span style={{ fontSize: 12, color: C.textDim }}>Due: <b style={{ color: C.white }}>{inv.dueDate}</b></span>}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              {inv.fileData && <button onClick={() => downloadFile(inv.fileData, inv.fileName||`${inv.title}.pdf`)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "6px 14px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>↓</button>}
+                              {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "6px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, fontFamily: F, textDecoration: "none" }}>Link ↗</a>}
+                              <button onClick={() => removeInvoice(selectedProfile.id, inv.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "6px 12px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>✕</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contracts */}
+                  {clientTab === "contracts" && (
+                    <div>
+                      <div style={{ ...crd, padding: "24px 24px", marginBottom: 20 }}>
+                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Contract</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
+                          <div><label style={lbl}>Title *</label><input style={inp} placeholder="Brand Identity Contract" value={contractForm.title} onChange={e => setContractForm({...contractForm, title: e.target.value})} /></div>
+                          <div><label style={lbl}>Date</label><input style={inp} placeholder="Jan 1, 2025" value={contractForm.signedDate} onChange={e => setContractForm({...contractForm, signedDate: e.target.value})} /></div>
+                          <div><label style={lbl}>Status</label>
+                            <select style={{ ...inp, cursor: "pointer" }} value={contractForm.status} onChange={e => setContractForm({...contractForm, status: e.target.value})}>
+                              <option value="pending">Pending Signature</option>
+                              <option value="active">Active / Signed</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                          </div>
+                          <div><label style={lbl}>Link URL</label><input style={inp} placeholder="https://..." value={contractForm.url} onChange={e => setContractForm({...contractForm, url: e.target.value})} /></div>
+                        </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <button onClick={() => addContract(selectedProfile.id)} disabled={!contractForm.title.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: contractForm.title.trim() ? 1 : .4 }}>Add Contract</button>
+                          <input type="file" ref={contractFileRef} accept=".pdf,image/*" onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onloadend = () => setContractForm(prev => ({...prev, fileData: r.result, fileName: f.name})); r.readAsDataURL(f); e.target.value = ""; }} style={{ display: "none" }} />
+                          <button onClick={() => contractFileRef.current.click()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>
+                            {contractForm.fileName ? `📎 ${contractForm.fileName}` : "📎 Attach File"}
+                          </button>
+                          {contractForm.fileName && <button onClick={() => setContractForm(prev => ({...prev, fileData: null, fileName: ""}))} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", fontSize: 12 }}>✕</button>}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {!(selectedProfile.contracts||[]).length && <div style={{ ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No contracts yet.</div>}
+                        {(selectedProfile.contracts||[]).map((con,i) => (
+                          <div key={con.id} style={{ ...crd, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                                <span style={{ fontWeight: 600, fontSize: 14, color: C.white }}>{con.title}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: con.status==="active" ? C.successBg : con.status==="completed" ? C.accentGlow : "rgba(251,191,36,0.1)", color: con.status==="active" ? C.success : con.status==="completed" ? C.accent : "#fbbf24" }}>{con.status}</span>
+                              </div>
+                              {con.signedDate && <span style={{ fontSize: 12, color: C.textDim }}>Date: <b style={{ color: C.white }}>{con.signedDate}</b></span>}
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              {con.fileData && <button onClick={() => downloadFile(con.fileData, con.fileName||`${con.title}.pdf`)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "6px 14px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>↓</button>}
+                              {con.url && <a href={con.url} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "6px 12px", borderRadius: 7, fontSize: 11, fontWeight: 600, fontFamily: F, textDecoration: "none" }}>Link ↗</a>}
+                              <button onClick={() => removeContract(selectedProfile.id, con.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "6px 12px", borderRadius: 7, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>✕</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Websites */}
+                  {clientTab === "websites" && (
+                    <div>
+                      <div style={{ ...crd, padding: "24px 24px", marginBottom: 20 }}>
+                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Website</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
+                          <div><label style={lbl}>Title *</label><input style={inp} placeholder="Main Website" value={websiteForm.title} onChange={e => setWebsiteForm({...websiteForm, title: e.target.value})} /></div>
+                          <div><label style={lbl}>URL *</label><input style={inp} placeholder="https://..." value={websiteForm.url} onChange={e => setWebsiteForm({...websiteForm, url: e.target.value})} /></div>
+                          <div><label style={lbl}>Live Date</label><input style={inp} placeholder="Jan 2025" value={websiteForm.liveDate} onChange={e => setWebsiteForm({...websiteForm, liveDate: e.target.value})} /></div>
+                          <div><label style={lbl}>Description</label><input style={inp} placeholder="Brief description..." value={websiteForm.description} onChange={e => setWebsiteForm({...websiteForm, description: e.target.value})} /></div>
+                        </div>
+                        <button onClick={() => addWebsite(selectedProfile.id)} disabled={!websiteForm.title.trim()||!websiteForm.url.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: (websiteForm.title.trim()&&websiteForm.url.trim()) ? 1 : .4 }}>Add Website</button>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 14 }}>
+                        {!(selectedProfile.websites||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
+                        {(selectedProfile.websites||[]).map(w => (
+                          <div key={w.id} style={{ ...crd, padding: "22px 24px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                              <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700 }}>{w.title}</h4>
+                              <button onClick={() => removeWebsite(selectedProfile.id, w.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "4px 9px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>✕</button>
+                            </div>
+                            {w.description && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.6, marginBottom: 10 }}>{w.description}</p>}
+                            {w.liveDate && <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>Live: <b style={{ color: C.white }}>{w.liveDate}</b></div>}
+                            <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "7px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit ↗</a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Analytics */}
+                  {clientTab === "analytics" && (
+                    <div>
+                      <div style={{ ...crd, padding: "24px 24px", marginBottom: 20 }}>
+                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add Report / Analytics</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
+                          <div><label style={lbl}>Title *</label><input style={inp} placeholder="Q1 Performance Report" value={analyticsForm.title} onChange={e => setAnalyticsForm({...analyticsForm, title: e.target.value})} /></div>
+                          <div><label style={lbl}>Description</label><input style={inp} placeholder="What this report covers..." value={analyticsForm.description} onChange={e => setAnalyticsForm({...analyticsForm, description: e.target.value})} /></div>
+                          <div><label style={lbl}>Link URL</label><input style={inp} placeholder="https://..." value={analyticsForm.url} onChange={e => setAnalyticsForm({...analyticsForm, url: e.target.value})} /></div>
+                        </div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <button onClick={() => addAnalyticsItem(selectedProfile.id)} disabled={!analyticsForm.title.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: analyticsForm.title.trim() ? 1 : .4 }}>Add Report</button>
+                          <input type="file" ref={analyticsFileRef} accept=".pdf,image/*,.xlsx,.csv" onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onloadend = () => setAnalyticsForm(prev => ({...prev, fileData: r.result, fileName: f.name})); r.readAsDataURL(f); e.target.value = ""; }} style={{ display: "none" }} />
+                          <button onClick={() => analyticsFileRef.current.click()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.textDim, padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>
+                            {analyticsForm.fileName ? `📎 ${analyticsForm.fileName}` : "📎 Attach File"}
+                          </button>
+                          {analyticsForm.fileName && <button onClick={() => setAnalyticsForm(prev => ({...prev, fileData: null, fileName: ""}))} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", fontSize: 12 }}>✕</button>}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 14 }}>
+                        {!(selectedProfile.analytics||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No reports yet.</div>}
+                        {(selectedProfile.analytics||[]).map(a => (
+                          <div key={a.id} style={{ ...crd, padding: "22px 24px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                              <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700 }}>{a.title}</h4>
+                              <button onClick={() => removeAnalyticsItem(selectedProfile.id, a.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "4px 9px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>✕</button>
+                            </div>
+                            {a.description && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.6, marginBottom: 12 }}>{a.description}</p>}
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {a.fileData && <button onClick={() => downloadFile(a.fileData, a.fileName||a.title)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "7px 16px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>↓ Download</button>}
+                              {a.url && <a href={a.url.startsWith("http") ? a.url : `https://${a.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none" }}>View ↗</a>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </>)}
 
           {/* ══════════════════════════════════════════════════════
@@ -1327,12 +1727,173 @@ export default function App() {
         </section>
       )}
 
+      {/* ══════ CLIENT PROFILE PAGE ══════ */}
+      {page === "client" && currentUser && (
+        <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 80px" }}>
+          {/* Header */}
+          <div style={{ marginBottom: 36 }}>
+            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 8 }}>Client Portal</div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,3.5vw,40px)", fontWeight: 700, color: C.white, marginBottom: 6 }}>Welcome back, {currentUser.displayName}</h2>
+            {myProfile?.company && <p style={{ color: C.textDim, fontSize: 14 }}>{myProfile.company}</p>}
+          </div>
+
+          {!myProfile ? (
+            <div style={{ ...crd, padding: "64px 36px", textAlign: "center" }}>
+              <div style={{ fontFamily: D, fontSize: 42, fontWeight: 700, color: C.accent, opacity: .3, marginBottom: 16 }}>◎</div>
+              <h3 style={{ fontFamily: D, fontSize: 20, color: C.white, fontWeight: 700, marginBottom: 8 }}>Your workspace is being prepared</h3>
+              <p style={{ color: C.textDim, fontSize: 14, maxWidth: 360, margin: "0 auto" }}>Your account is ready. CM will add your deliverables here once your project gets started.</p>
+            </div>
+          ) : (<>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
+              {[
+                { k: "overview", l: "Overview", i: "◈" },
+                { k: "brands", l: `Brand Kits (${clientBrands.length})`, i: "✦" },
+                { k: "invoices", l: `Invoices (${(myProfile.invoices||[]).length})`, i: "◆" },
+                { k: "contracts", l: `Contracts (${(myProfile.contracts||[]).length})`, i: "◉" },
+                { k: "websites", l: `Websites (${(myProfile.websites||[]).length})`, i: "⊕" },
+                { k: "analytics", l: `Analytics (${(myProfile.analytics||[]).length})`, i: "▲" },
+              ].map(t => (
+                <button key={t.k} onClick={() => setClientTab(t.k)} style={{ background: clientTab===t.k ? C.accentGlow : C.card, border: `1px solid ${clientTab===t.k ? C.accent : C.border}`, color: clientTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
+              ))}
+            </div>
+
+            {/* Overview */}
+            {clientTab === "overview" && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14 }}>
+                {[
+                  { label: "Brand Kits", count: clientBrands.length, icon: "✦", color: C.accent, tab: "brands" },
+                  { label: "Invoices", count: (myProfile.invoices||[]).length, icon: "◆", color: C.blue, tab: "invoices" },
+                  { label: "Contracts", count: (myProfile.contracts||[]).length, icon: "◉", color: C.purple, tab: "contracts" },
+                  { label: "Websites", count: (myProfile.websites||[]).length, icon: "⊕", color: C.success, tab: "websites" },
+                  { label: "Analytics", count: (myProfile.analytics||[]).length, icon: "▲", color: "#f97316", tab: "analytics" },
+                ].map(s => (
+                  <div key={s.tab} onClick={() => setClientTab(s.tab)} style={{ ...crd, padding: "26px 22px", cursor: "pointer", transition: "all .2s" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                    <div style={{ fontSize: 22, color: s.color, marginBottom: 10 }}>{s.icon}</div>
+                    <div style={{ fontFamily: D, fontSize: 30, fontWeight: 700, color: C.white, marginBottom: 2 }}>{s.count}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "1px" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Brand Kits */}
+            {clientTab === "brands" && (
+              !clientBrands.length ? (
+                <div style={{ ...crd, padding: "56px 36px", textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 10, opacity: .3 }}>✦</div>
+                  <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>No brand kits yet</h3>
+                  <p style={{ color: C.textDim, fontSize: 13 }}>Your brand assets will appear here once they're ready.</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
+                  {clientBrands.map((b,i) => (
+                    <div key={b.id} onClick={() => openBrand(b.id)} style={{ ...crd, overflow: "hidden", cursor: "pointer", transition: "all .3s", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
+                      {b.image ? <img src={b.image} alt="" style={{ width: "100%", height: 160, objectFit: "cover" }} /> : <div style={{ height: 90, background: `linear-gradient(135deg,${b.color}20,${b.color}08)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: D, fontSize: 36, fontWeight: 700, color: b.color, opacity: .35 }}>{b.name.charAt(0)}</div>}
+                      <div style={{ padding: "20px 22px" }}>
+                        <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 5 }}>{b.name}</h4>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: `${b.color}10`, color: b.color }}>{b.category}</span>
+                        {b.notes && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.7, marginTop: 8 }}>{b.notes}</p>}
+                        <div style={{ marginTop: 12, fontSize: 12, color: C.accent, fontWeight: 600 }}>View Brand Kit →</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {/* Invoices */}
+            {clientTab === "invoices" && (
+              <div style={{ display: "grid", gap: 10 }}>
+                {!(myProfile.invoices||[]).length && <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No invoices yet.</div>}
+                {(myProfile.invoices||[]).map((inv,i) => (
+                  <div key={inv.id} style={{ ...crd, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
+                        <span style={{ fontWeight: 600, fontSize: 15, color: C.white }}>{inv.title}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: inv.status==="paid" ? C.successBg : inv.status==="pending" ? "rgba(251,191,36,0.1)" : C.dangerBg, color: inv.status==="paid" ? C.success : inv.status==="pending" ? "#fbbf24" : C.danger }}>{inv.status}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                        {inv.amount && <span style={{ fontSize: 13, color: C.textDim }}>Amount: <b style={{ color: C.white }}>{inv.amount}</b></span>}
+                        {inv.dueDate && <span style={{ fontSize: 13, color: C.textDim }}>Due: <b style={{ color: C.white }}>{inv.dueDate}</b></span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {inv.fileData && <button onClick={() => downloadFile(inv.fileData, inv.fileName||`${inv.title}.pdf`)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "8px 16px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>↓ Download</button>}
+                      {inv.url && <a href={inv.url} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "8px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>View ↗</a>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Contracts */}
+            {clientTab === "contracts" && (
+              <div style={{ display: "grid", gap: 10 }}>
+                {!(myProfile.contracts||[]).length && <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No contracts yet.</div>}
+                {(myProfile.contracts||[]).map((con,i) => (
+                  <div key={con.id} style={{ ...crd, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
+                        <span style={{ fontWeight: 600, fontSize: 15, color: C.white }}>{con.title}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: con.status==="active" ? C.successBg : con.status==="completed" ? C.accentGlow : "rgba(251,191,36,0.1)", color: con.status==="active" ? C.success : con.status==="completed" ? C.accent : "#fbbf24" }}>{con.status}</span>
+                      </div>
+                      {con.signedDate && <span style={{ fontSize: 13, color: C.textDim }}>Date: <b style={{ color: C.white }}>{con.signedDate}</b></span>}
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {con.fileData && <button onClick={() => downloadFile(con.fileData, con.fileName||`${con.title}.pdf`)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "8px 16px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>↓ Download</button>}
+                      {con.url && <a href={con.url} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "8px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>View ↗</a>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Websites */}
+            {clientTab === "websites" && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
+                {!(myProfile.websites||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
+                {(myProfile.websites||[]).map((w,i) => (
+                  <div key={w.id} style={{ ...crd, padding: "24px", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}>
+                    <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>{w.title}</h4>
+                    {w.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>{w.description}</p>}
+                    {w.liveDate && <div style={{ fontSize: 12, color: C.textDim, marginBottom: 12 }}>Live since: <b style={{ color: C.white }}>{w.liveDate}</b></div>}
+                    <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit Site ↗</a>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Analytics */}
+            {clientTab === "analytics" && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
+                {!(myProfile.analytics||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No analytics reports yet.</div>}
+                {(myProfile.analytics||[]).map((a,i) => (
+                  <div key={a.id} style={{ ...crd, padding: "24px", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}>
+                    <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>{a.title}</h4>
+                    {a.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>{a.description}</p>}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {a.fileData && <button onClick={() => downloadFile(a.fileData, a.fileName||a.title)} style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "8px 16px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>↓ Download</button>}
+                      {a.url && <a href={a.url.startsWith("http") ? a.url : `https://${a.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "8px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none" }}>View Report ↗</a>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>)}
+        </section>
+      )}
+
       {/* ══════ BRAND KIT DETAIL PAGE ══════ */}
       {page === "brand" && selectedBrand && (
         <section style={{ maxWidth: 1140, margin: "0 auto", padding: "92px 20px 72px" }}>
           {/* Header with back button */}
           <div style={{ marginBottom: 32 }}>
-            <button onClick={() => nav("portal")} style={{ background: "none", border: "none", color: C.textDim, fontSize: 13, cursor: "pointer", fontFamily: F, marginBottom: 16, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to {isAdmin ? "Admin Portal" : "My Brands"}</button>
+            <button onClick={() => nav(isAdmin ? "portal" : "client")} style={{ background: "none", border: "none", color: C.textDim, fontSize: 13, cursor: "pointer", fontFamily: F, marginBottom: 16, padding: 0, display: "flex", alignItems: "center", gap: 6 }}>← Back to {isAdmin ? "Admin Portal" : "My Portal"}</button>
             <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               {selectedBrand.image ? (
                 <img src={selectedBrand.image} alt="" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover" }} />

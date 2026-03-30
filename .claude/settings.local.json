@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(python3 \"C:/Users/chase/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"marketing design agency branding creative professional\" --design-system -p \"CM Marketing & Design\" -f markdown)",
-      "Bash(python \"C:/Users/chase/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"marketing design agency branding creative professional\" --design-system -p \"CM Marketing & Design\" -f markdown)"
+      "Bash(python \"C:/Users/chase/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"marketing design agency branding creative professional\" --design-system -p \"CM Marketing & Design\" -f markdown)",
+      "Bash(grep -n \"admin123\\\\|password.*:\" . -r --include=*.jsx --include=*.js --exclude-dir=node_modules --exclude-dir=dist)",
+      "Bash(xargs cat:*)",
+      "Bash(git log:*)",
+      "Bash(grep -r \"noreply@cmmarketingdesign\\\\|gmail\\\\|smtp\\\\|email\" . --include=*.js --include=*.jsx --exclude-dir=node_modules --exclude-dir=dist)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
