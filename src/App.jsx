@@ -79,7 +79,7 @@ const DEFAULT_CONTENT = {
   heroTagline: "Marketing · Design · Branding",
   heroTitle1: "Your Brand Deserves",
   heroTitleAccent: "to Be Seen",
-  heroSubtitle: "CM Marketing & Design creates strategic branding, stunning websites, and marketing campaigns that help businesses stand out and grow. Every brand has a story — we make sure the right people hear it.",
+  heroSubtitle: "CM Marketing & Design creates strategic branding, stunning websites, and marketing campaigns that help businesses stand out and grow. Every brand has a story — we make sure the right people see it.",
   heroCta1: "Explore Services",
   heroCta2: "About Us →",
   // Stats
@@ -94,8 +94,8 @@ const DEFAULT_CONTENT = {
   svc1Desc: "Complete brand systems — logos, color palettes, typography, guidelines, and everything your business needs to look polished and professional.",
   svc2Title: "Website Design & Development",
   svc2Desc: "Beautiful, fast, mobile-friendly websites built to convert visitors into paying customers. From concept through launch and beyond.",
-  svc3Title: "Social Media Marketing",
-  svc3Desc: "Strategic content creation, scheduling, and community management across all major platforms. We grow your audience with content that resonates.",
+  svc3Title: "Social Media Graphics",
+  svc3Desc: "Eye-catching graphics and visual content designed for your social platforms — posts, stories, banners, and more. You post, we make it look great.",
   svc4Title: "Marketing Strategy",
   svc4Desc: "Data-driven marketing plans tailored to your goals. Market analysis, competitor research, and a clear roadmap for sustainable growth.",
   svc5Title: "Content & Copywriting",
@@ -596,6 +596,10 @@ export default function App() {
           .nav-mobile-panel { display: flex !important; }
         }
         .svc-card:hover{border-color:${C.accent}!important;transform:translateY(-3px)!important;box-shadow:0 12px 40px ${C.accentGlow}!important}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}.stats-grid>div:nth-child(2){border-right:none!important}.stats-grid>div:nth-child(3){border-top:1px solid ${C.border}}}
+        .why-cm-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+        @media(max-width:768px){.why-cm-grid{grid-template-columns:1fr;gap:48px}}
         .stat-card{transition:all .3s ease}
         .stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px ${C.accentGlow}}
         .nav-link:hover{color:${C.accent}!important;background:${C.accentGlow}!important}
@@ -807,7 +811,7 @@ export default function App() {
 
         {/* ── STATS ── */}
         <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "0" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
+          <div className="stats-grid" style={{ maxWidth: 1100, margin: "0 auto" }}>
             {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
               <div key={i} style={{ padding: "44px 32px", borderRight: i < 3 ? `1px solid ${C.border}` : "none", textAlign: "center" }}>
                 <div style={{ fontFamily: D, fontSize: "clamp(36px,4vw,56px)", fontWeight: 700, color: C.accent, lineHeight: 1, marginBottom: 8, letterSpacing: "-0.03em" }}>{s.n}</div>
@@ -854,7 +858,7 @@ export default function App() {
 
         {/* ── WHY CM ── */}
         <section style={{ padding: "0 24px 100px", maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 80, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+          <div className="why-cm-grid" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 80 }}>
             <div>
               <div style={{ fontFamily: D, fontSize: "clamp(36px,4vw,52px)", fontWeight: 700, color: C.white, lineHeight: 1.1, letterSpacing: "-0.03em", marginBottom: 28 }}>
                 "We don't do<br /><span style={{ color: C.accent, fontStyle: "italic" }}>cookie-cutter.</span>"
