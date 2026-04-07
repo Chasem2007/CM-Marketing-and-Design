@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useUser, useClerk, SignIn, UserButton } from "@clerk/clerk-react";
 import storage from "./storage";
-import { FloatingPaths } from "./components/ui/background-paths";
 import { motion } from "framer-motion";
 
 /*
@@ -113,6 +112,39 @@ const DEFAULT_CONTENT = {
   val4Title: "Your Brand, Our Priority", val4Text: "We take time to understand your story, your values, and your audience. That's how we create work that feels authentically you.",
 };
 
+
+// ═══════════════════════════════════════════════════════════════════
+// FEATURED WORK — Hardcoded showcase projects (update URLs below)
+// ═══════════════════════════════════════════════════════════════════
+const FEATURED_WORK = [
+  {
+    id: "fw-1",
+    title: "The Yogurt Shop",
+    category: "Website Design",
+    description: "A fresh, inviting website for a local yogurt shop — designed to drive foot traffic and showcase their menu online.",
+    url: "https://theyogurtshop.netlify.app/",
+    color: "#f97316",
+    tag: "Website",
+  },
+  {
+    id: "fw-2",
+    title: "The Softball Shop",
+    category: "Website Design",
+    description: "A clean, high-converting website built for softball players, coaches, and teams looking for gear and resources.",
+    url: "https://thesoftballshop.online/",
+    color: "#7aabe0",
+    tag: "Website",
+  },
+  {
+    id: "fw-3",
+    title: "Tier 1",
+    category: "Website Design",
+    description: "A bold, professional website that positions Tier 1 as a top-tier brand and drives new business through a strong online presence.",
+    url: "https://tier1athletes.netlify.app/",
+    color: "#ddd2be",
+    tag: "Website",
+  },
+];
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN APP COMPONENT
@@ -575,12 +607,9 @@ export default function App() {
         @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
         @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-        @keyframes float{0%,100%{transform:translateY(0px)}50%{transform:translateY(-8px)}}
-        @keyframes gradientPulse{0%,100%{opacity:.6}50%{opacity:1}}
         @keyframes scaleIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
-        button:active{transform:scale(0.97)!important}
+        button:active{opacity:0.85!important}
         button{cursor:pointer}
         input:focus,textarea:focus,select:focus{border-color:${C.accent}!important;outline:none;box-shadow:0 0 0 3px ${C.accentGlow}}
         textarea{font-family:${F}}
@@ -600,6 +629,7 @@ export default function App() {
         @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}.stats-grid>div:nth-child(2){border-right:none!important}.stats-grid>div:nth-child(3){border-top:1px solid ${C.border}}}
         .why-cm-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
         @media(max-width:768px){.why-cm-grid{grid-template-columns:1fr;gap:48px}}
+        @media(max-width:768px){.bg-2col{grid-template-columns:1fr!important}.bg-3col{grid-template-columns:1fr!important}.bg-4col{grid-template-columns:1fr 1fr!important}}
         .stat-card{transition:all .3s ease}
         .stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px ${C.accentGlow}}
         .nav-link:hover{color:${C.accent}!important;background:${C.accentGlow}!important}
@@ -611,7 +641,9 @@ export default function App() {
       {toast && <div style={{ position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9999, padding: "10px 24px", borderRadius: 9, background: toast.type === "error" ? C.dangerBg : C.successBg, border: `1px solid ${toast.type === "error" ? C.danger : C.success}`, color: toast.type === "error" ? C.danger : C.success, fontWeight: 600, fontSize: 13, animation: "slideDown .3s ease", backdropFilter: "blur(12px)" }}>{toast.msg}</div>}
 
       {/* ══════ NAV ══════ */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, background: C.navBg, backdropFilter: "blur(16px)", borderBottom: `1px solid ${C.border}` }}>
+      {/* Top accent bar */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1001, height: 3, background: C.accent }} />
+      <nav style={{ position: "fixed", top: 3, left: 0, right: 0, zIndex: 1000, background: C.navBg, backdropFilter: "blur(16px)", borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1140, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
           {/* Logo */}
           <div onClick={() => nav("home")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
@@ -698,7 +730,7 @@ export default function App() {
           </div>
         </div>
       </nav>
-      <div style={{ height: 64 }} />
+      <div style={{ height: 67 }} />
 
       {/* ══════════════════════════════════════════════════════════
            HOME
@@ -707,55 +739,34 @@ export default function App() {
       {page === "home" && (<>
         {/* ── HERO ── */}
         <section style={{ minHeight: "95vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: dark ? "#0a0a0a" : "#fafaf8" }}>
-          {/* FloatingPaths background */}
-          <div style={{ position: "absolute", inset: 0, opacity: dark ? 0.4 : 0.15 }}>
-            <FloatingPaths position={1} />
-          </div>
-          <div style={{ position: "absolute", inset: 0, opacity: dark ? 0.25 : 0.1 }}>
-            <FloatingPaths position={-1} />
-          </div>
-          {/* Subtle radial vignette */}
-          <div style={{ position: "absolute", inset: 0, background: dark ? "radial-gradient(ellipse at center, transparent 40%, #0a0a0a 100%)" : "radial-gradient(ellipse at center, transparent 40%, #fafaf8 100%)", pointerEvents: "none" }} />
+          {/* Large background lettermark — editorial / magazine style */}
+          <div aria-hidden style={{ position: "absolute", right: "-2vw", top: "50%", transform: "translateY(-50%)", fontFamily: D, fontSize: "clamp(220px, 32vw, 480px)", fontWeight: 700, color: "transparent", WebkitTextStroke: dark ? "1.5px rgba(221,210,190,0.07)" : "1.5px rgba(58,58,58,0.06)", lineHeight: 1, letterSpacing: "-0.05em", userSelect: "none", pointerEvents: "none", whiteSpace: "nowrap" }}>CM</div>
+          {/* Thin horizontal accent line across top of content */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(to right, transparent, ${C.accent}40, transparent)` }} />
 
           <div style={{ position: "relative", zIndex: 10, maxWidth: 1100, margin: "0 auto", padding: "0 24px", width: "100%" }}>
             {/* Eyebrow label */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 32 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.9 }}
+              style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 44 }}
             >
-              <img src="/logo.png" alt="CM" style={{ width: 32, height: 32, borderRadius: 8 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 14px", borderRadius: 99, background: dark ? "rgba(221,210,190,0.08)" : "rgba(58,58,58,0.06)", border: `1px solid ${dark ? "rgba(221,210,190,0.2)" : "rgba(58,58,58,0.15)"}` }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: C.accent }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, letterSpacing: "2.5px", textTransform: "uppercase", fontFamily: F }}>{ct.heroTagline}</span>
-              </div>
+              <img src="/logo.png" alt="CM" style={{ width: 36, height: 36, borderRadius: 9 }} />
+              <div style={{ width: 48, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>{ct.heroTagline}</span>
             </motion.div>
 
-            {/* Main heading — animated letter-by-letter */}
-            <div style={{ marginBottom: 32, overflow: "hidden" }}>
-              {[ct.heroTitle1, ct.heroTitleAccent].map((line, lineIdx) => (
-                <div key={lineIdx} style={{ overflow: "hidden", display: "block" }}>
-                  <motion.div
-                    initial={{ y: "100%" }}
-                    animate={{ y: 0 }}
-                    transition={{ duration: 0.8, delay: lineIdx * 0.15, ease: [0.16, 1, 0.3, 1] }}
-                    style={{ display: "block" }}
-                  >
-                    <span style={{
-                      fontFamily: D,
-                      fontSize: "clamp(52px,8vw,96px)",
-                      fontWeight: 700,
-                      lineHeight: 1.0,
-                      letterSpacing: "-0.03em",
-                      color: lineIdx === 1 ? C.accent : C.white,
-                      fontStyle: lineIdx === 1 ? "italic" : "normal",
-                      display: "block",
-                    }}>{line}</span>
-                  </motion.div>
-                </div>
-              ))}
-            </div>
+            {/* Main heading */}
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.75, delay: 0.15 }}
+              style={{ marginBottom: 36 }}
+            >
+              <span style={{ fontFamily: D, fontSize: "clamp(52px,8vw,96px)", fontWeight: 700, lineHeight: 1.0, letterSpacing: "-0.03em", color: C.white, display: "block" }}>{ct.heroTitle1}</span>
+              <span style={{ fontFamily: D, fontSize: "clamp(52px,8vw,96px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", color: C.accent, fontStyle: "italic", display: "block" }}>{ct.heroTitleAccent}</span>
+            </motion.div>
 
             {/* Subtitle + CTA row */}
             <motion.div
@@ -768,9 +779,9 @@ export default function App() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "0 0 auto" }}>
                 <button
                   onClick={() => nav("contact")}
-                  style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, letterSpacing: "0.02em", transition: "all .25s ease", whiteSpace: "nowrap" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+                  style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, letterSpacing: "0.02em", transition: "opacity .2s ease", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
                 >Get a Free Consultation</button>
                 <button
                   onClick={() => nav("services")}
@@ -781,18 +792,15 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* Bottom scroll indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 1.2 }}
-              style={{ position: "absolute", bottom: -60, left: 0, display: "flex", alignItems: "center", gap: 10 }}
-            >
-              <div style={{ width: 1, height: 48, background: `linear-gradient(to bottom, ${C.accent}, transparent)` }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", fontFamily: F }}>Scroll</span>
-            </motion.div>
           </div>
         </section>
+
+        {/* ── PHONE CTA STRIP ── */}
+        <div style={{ background: C.accent, padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+          <svg width="16" height="16" fill="none" stroke={dark ? "#141414" : "#f5f0e8"} strokeWidth="2.2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span style={{ fontFamily: F, fontWeight: 700, fontSize: 14, color: dark ? "#141414" : "#f5f0e8", letterSpacing: "0.01em" }}>Ready to grow your brand? Call or text <strong style={{ fontSize: 16 }}>(406) 633-0998</strong> — leave a voicemail and we'll call you back!</span>
+          <button onClick={() => nav("contact")} style={{ background: dark ? "#141414" : "#f5f0e8", border: "none", color: C.accent, padding: "7px 18px", borderRadius: 5, cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: F, whiteSpace: "nowrap", flexShrink: 0 }}>Or Send a Message →</button>
+        </div>
 
         {/* ── MARQUEE STRIP ── */}
         <div style={{ overflow: "hidden", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "16px 0", background: C.bgAlt, marginBottom: 0 }}>
@@ -800,8 +808,8 @@ export default function App() {
             {[...Array(2)].map((_, ri) => (
               <div key={ri} style={{ display: "flex", gap: 0 }}>
                 {["Brand Identity", "Web Design", "Social Media", "Marketing Strategy", "Content Creation", "SEO & Ads", "Brand Identity", "Web Design", "Social Media", "Marketing Strategy", "Content Creation", "SEO & Ads"].map((item, i) => (
-                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 20, padding: "0 32px", fontSize: 12, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", color: C.textDim, whiteSpace: "nowrap" }}>
-                    <span style={{ color: C.accent, fontSize: 8 }}>◆</span>{item}
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 20, padding: "0 28px", fontSize: 11, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase", color: C.textDim, whiteSpace: "nowrap" }}>
+                    <span style={{ color: C.accent, opacity: 0.5, fontSize: 13, fontWeight: 300 }}>/</span>{item}
                   </span>
                 ))}
               </div>
@@ -813,8 +821,9 @@ export default function App() {
         <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "0" }}>
           <div className="stats-grid" style={{ maxWidth: 1100, margin: "0 auto" }}>
             {[{n: ct.stat1Num, l: ct.stat1Label},{n: ct.stat2Num, l: ct.stat2Label},{n: ct.stat3Num, l: ct.stat3Label},{n: ct.stat4Num, l: ct.stat4Label}].map((s,i) => (
-              <div key={i} style={{ padding: "44px 32px", borderRight: i < 3 ? `1px solid ${C.border}` : "none", textAlign: "center" }}>
-                <div style={{ fontFamily: D, fontSize: "clamp(36px,4vw,56px)", fontWeight: 700, color: C.accent, lineHeight: 1, marginBottom: 8, letterSpacing: "-0.03em" }}>{s.n}</div>
+              <div key={i} className="stat-card" style={{ padding: "48px 36px", borderRight: i < 3 ? `1px solid ${C.border}` : "none" }}>
+                <div style={{ fontFamily: D, fontSize: "clamp(40px,4.5vw,64px)", fontWeight: 700, color: C.accent, lineHeight: 1, marginBottom: 10, letterSpacing: "-0.04em" }}>{s.n}</div>
+                <div style={{ width: 24, height: 2, background: C.accent, opacity: 0.4, marginBottom: 10 }} />
                 <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase", fontFamily: F }}>{s.l}</div>
               </div>
             ))}
@@ -825,7 +834,10 @@ export default function App() {
         <section style={{ maxWidth: 1100, margin: "0 auto", padding: "100px 24px 80px" }}>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 64, gap: 24, flexWrap: "wrap" }}>
             <div>
-              <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 16, fontFamily: F }}>What We Do</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+                <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>What We Do</span>
+              </div>
               <h2 style={{ fontFamily: D, fontSize: "clamp(32px,5vw,58px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.05, margin: 0 }}>Services Built to<br />Grow Your Brand</h2>
             </div>
             <button
@@ -856,6 +868,59 @@ export default function App() {
           </div>
         </section>
 
+        {/* ── FEATURED WORK ── */}
+        <section style={{ padding: "0 24px 0", maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 80, marginBottom: 64 }}>
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+                  <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>Our Work</span>
+                </div>
+                <h2 style={{ fontFamily: D, fontSize: "clamp(32px,5vw,58px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.05, margin: 0 }}>Websites We've<br />Built & Launched</h2>
+              </div>
+              <button
+                onClick={() => nav("projects")}
+                style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textDim, padding: "12px 24px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F, transition: "all .2s", flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textDim; }}
+              >All Projects →</button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, marginBottom: 100 }}>
+            {FEATURED_WORK.map((p) => (
+              <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", transition: "all .3s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 16px 48px ${C.accentGlow}`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                {/* Browser chrome mockup */}
+                <div style={{ background: C.bgAlt, borderBottom: `1px solid ${C.border}`, padding: "9px 14px", display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#e05555", opacity: .7 }} />
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b", opacity: .7 }} />
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#6ec98f", opacity: .7 }} />
+                  <div style={{ flex: 1, height: 20, background: C.bg, borderRadius: 4, marginLeft: 8, display: "flex", alignItems: "center", paddingLeft: 10 }}>
+                    <span style={{ fontSize: 10, color: C.textDim, opacity: .5, fontFamily: F }}>{p.url ? p.url.replace(/https?:\/\//, "").replace(/\/$/, "") : "cmmarketingdesign.com"}</span>
+                  </div>
+                </div>
+                {/* Visual card */}
+                <div style={{ height: 150, background: `linear-gradient(135deg, ${p.color}22 0%, ${p.color}06 100%)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                  <div style={{ fontFamily: D, fontSize: 64, fontWeight: 700, color: p.color, opacity: .13, letterSpacing: "-0.05em", userSelect: "none" }}>{p.title.charAt(0)}</div>
+                  <div style={{ position: "absolute", bottom: 12, right: 14, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 5, background: `${p.color}20`, color: p.color, letterSpacing: "1px", textTransform: "uppercase", fontFamily: F }}>{p.tag}</div>
+                </div>
+                <div style={{ padding: "22px 24px" }}>
+                  <h3 style={{ fontFamily: D, fontSize: 22, color: C.white, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.01em" }}>{p.title}</h3>
+                  <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.7, marginBottom: 16, fontFamily: F }}>{p.description}</p>
+                  {p.url ? (
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: F }}>View Live ↗</a>
+                  ) : (
+                    <button onClick={() => nav("contact")} style={{ background: "none", border: "none", padding: 0, color: C.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>Ask us about this project →</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* ── WHY CM ── */}
         <section style={{ padding: "0 24px 100px", maxWidth: 1100, margin: "0 auto" }}>
           <div className="why-cm-grid" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 80 }}>
@@ -868,9 +933,9 @@ export default function App() {
               </p>
               <button
                 onClick={() => nav("contact")}
-                style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "15px 36px", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.02em" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 36px ${C.accentGlow}`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+                style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "15px 36px", borderRadius: 6, cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: F, transition: "opacity .2s ease", letterSpacing: "0.02em" }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
               >Start Your Project</button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -896,7 +961,10 @@ export default function App() {
       {page === "services" && (
         <section style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
           <div style={{ marginBottom: 80 }}>
-            <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 20, fontFamily: F }}>What We Do</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>What We Do</span>
+            </div>
             <h2 style={{ fontFamily: D, fontSize: "clamp(40px,6vw,72px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.0, marginBottom: 24, maxWidth: 700 }}>{ct.servicesHeading}</h2>
             <p style={{ color: C.textDim, fontSize: 17, maxWidth: 500, lineHeight: 1.8, fontFamily: F }}>{ct.servicesSubheading}</p>
           </div>
@@ -928,9 +996,9 @@ export default function App() {
             <p style={{ color: C.textDim, fontSize: 16, marginBottom: 36, maxWidth: 460, lineHeight: 1.75, fontFamily: F }}>We'll help you figure out the right strategy. No pressure, no commitment — just a conversation.</p>
             <button
               onClick={() => nav("contact")}
-              style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, transition: "all .25s ease", letterSpacing: "0.02em" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "none"; }}
+              style={{ background: C.accent, border: "none", color: dark ? "#0a0a0a" : "#f5f0e8", padding: "16px 40px", borderRadius: 6, cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: F, transition: "opacity .2s ease", letterSpacing: "0.02em" }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
             >Book a Free Consultation →</button>
           </div>
         </section>
@@ -940,7 +1008,10 @@ export default function App() {
       {page === "about" && (
         <section style={{ maxWidth: 1100, margin: "0 auto", padding: "120px 24px 80px" }}>
           <div style={{ marginBottom: 80 }}>
-            <div style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 20, fontFamily: F }}>Who We Are</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>Who We Are</span>
+            </div>
             <h2 style={{ fontFamily: D, fontSize: "clamp(40px,6vw,72px)", fontWeight: 700, color: C.white, letterSpacing: "-0.03em", lineHeight: 1.0, maxWidth: 700 }}>{ct.aboutHeading}</h2>
           </div>
           {/* Story section - two col */}
@@ -999,10 +1070,13 @@ export default function App() {
       {/* ══════ PROJECTS ══════ */}
       {page === "projects" && (
         <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Portfolio</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Our Projects</h2>
-            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 520, margin: "0 auto", lineHeight: 1.75 }}>A selection of brands, websites, and campaigns we've brought to life.</p>
+          <div style={{ marginBottom: 64 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>Portfolio</span>
+            </div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(36px,5vw,64px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.03em", lineHeight: 1.0 }}>Our Projects</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 520, lineHeight: 1.75, fontFamily: F }}>A selection of brands, websites, and campaigns we've brought to life.</p>
           </div>
 
           {/* Admin: Add Project form */}
@@ -1053,6 +1127,50 @@ export default function App() {
                 document.getElementById("projUrl").value = "";
                 window._projCover = null;
               }} style={btn}>Add Project</button>
+            </div>
+          )}
+
+          {/* Featured work — always shown */}
+          <div style={{ marginBottom: 48 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+              <div style={{ width: 24, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", fontFamily: F, opacity: 0.75 }}>Featured</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
+              {FEATURED_WORK.map((p) => (
+                <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", transition: "all .3s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = `0 12px 40px ${C.accentGlow}`; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                >
+                  <div style={{ background: C.bgAlt, borderBottom: `1px solid ${C.border}`, padding: "9px 14px", display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#e05555", opacity: .7 }} />
+                    <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#f59e0b", opacity: .7 }} />
+                    <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#6ec98f", opacity: .7 }} />
+                    <div style={{ flex: 1, height: 18, background: C.bg, borderRadius: 4, marginLeft: 8 }} />
+                  </div>
+                  <div style={{ height: 140, background: `linear-gradient(135deg, ${p.color}22 0%, ${p.color}06 100%)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                    <div style={{ fontFamily: D, fontSize: 56, fontWeight: 700, color: p.color, opacity: .13, userSelect: "none" }}>{p.title.charAt(0)}</div>
+                    <div style={{ position: "absolute", bottom: 10, right: 12, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 4, background: `${p.color}20`, color: p.color, letterSpacing: "1px", textTransform: "uppercase", fontFamily: F }}>{p.tag}</div>
+                  </div>
+                  <div style={{ padding: "20px 22px" }}>
+                    <h3 style={{ fontFamily: D, fontSize: 20, color: C.white, fontWeight: 700, marginBottom: 6 }}>{p.title}</h3>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 5, background: C.accentGlow, color: C.accent, fontFamily: F }}>{p.category}</span>
+                    {p.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.7, marginTop: 10, marginBottom: 10, fontFamily: F }}>{p.description}</p>}
+                    {p.url ? (
+                      <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.accent, fontSize: 13, fontWeight: 600, textDecoration: "none", fontFamily: F }}>View Live ↗</a>
+                    ) : (
+                      <button onClick={() => nav("contact")} style={{ background: "none", border: "none", padding: 0, color: C.accent, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>Inquire about this project →</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {projects.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+              <div style={{ width: 24, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 10, fontWeight: 700, letterSpacing: "2.5px", textTransform: "uppercase", fontFamily: F, opacity: 0.75 }}>More Work</span>
             </div>
           )}
 
@@ -2096,10 +2214,23 @@ export default function App() {
       {/* ══════ CONTACT ══════ */}
       {page === "contact" && (
         <section style={{ maxWidth: 720, margin: "0 auto", padding: "100px 20px 80px" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 14 }}>Get In Touch</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(32px,4.5vw,52px)", fontWeight: 700, color: C.white, marginBottom: 14, letterSpacing: "-0.02em" }}>Let's Work Together</h2>
-            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 480, margin: "0 auto", lineHeight: 1.75 }}>Tell us about your project and we'll get back to you within 24 hours.</p>
+          <div style={{ marginBottom: 48 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+              <div style={{ width: 32, height: 1, background: C.accent, opacity: 0.5 }} />
+              <span style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", fontFamily: F, opacity: 0.85 }}>Get In Touch</span>
+            </div>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(36px,5vw,60px)", fontWeight: 700, color: C.white, marginBottom: 16, letterSpacing: "-0.03em", lineHeight: 1.0 }}>Let's Work Together</h2>
+            <p style={{ color: C.textDim, fontSize: 17, maxWidth: 480, lineHeight: 1.75, fontFamily: F, marginBottom: 24 }}>Tell us about your project and we'll get back to you within 24 hours.</p>
+            {/* Phone number */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 14, padding: "16px 22px", border: `1px solid ${C.accent}40`, borderRadius: 10, background: C.accentGlow, marginBottom: 8 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 9, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="18" height="18" fill="none" stroke={dark ? "#141414" : "#f5f0e8"} strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </div>
+              <div>
+                <div style={{ fontFamily: F, fontWeight: 700, color: C.white, fontSize: 20, letterSpacing: "0.01em" }}>(406) 633-0998</div>
+                <div style={{ color: C.textDim, fontSize: 12, fontFamily: F, marginTop: 2 }}>Leave a voicemail — we call everyone back!</div>
+              </div>
+            </div>
           </div>
 
           {contactSubmitted ? (
@@ -2230,8 +2361,17 @@ export default function App() {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 14 }}>Ready to Start?</div>
-              <p style={{ color: C.textDim, fontSize: 13, marginBottom: 16, lineHeight: 1.7 }}>Let's talk about your brand goals.</p>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: "2px", textTransform: "uppercase", marginBottom: 14 }}>Contact Us</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 30, height: 30, borderRadius: 7, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" fill="none" stroke={C.accent} strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.37 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.77a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: F, fontWeight: 700, color: C.white, fontSize: 15 }}>(406) 633-0998</div>
+                  <div style={{ color: C.textDim, fontSize: 11, fontFamily: F }}>Leave a voicemail — we call back!</div>
+                </div>
+              </div>
+              <p style={{ color: C.textDim, fontSize: 13, marginBottom: 16, lineHeight: 1.7 }}>Or fill out our contact form.</p>
               <button onClick={() => nav("contact")} style={{ ...btn, padding: "11px 24px", fontSize: 13 }}>Get a Free Quote</button>
             </div>
           </div>
