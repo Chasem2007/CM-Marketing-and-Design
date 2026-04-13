@@ -1174,8 +1174,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Project cards grid */}
-          {projects.length > 0 ? (
+          {/* Project cards grid — only shown when admin has added projects */}
+          {projects.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 20 }}>
               {projects.map((p, i) => (
                 <div key={p.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .4s ease ${i * .06}s forwards`, opacity: 0, transition: "all .3s" }}
@@ -1249,14 +1249,6 @@ export default function App() {
                   </div>
                 </div>
               ))}
-            </div>
-          ) : (
-            <div style={{ ...crd, padding: "60px 36px", textAlign: "center" }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: C.accentGlow, border: `1px solid ${C.accent}30`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: C.accent }}>
-                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M2 13.5V20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6.5"/><path d="M12 2v13M8 6l4-4 4 4"/></svg>
-              </div>
-              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6, letterSpacing: "-0.01em" }}>{isAdmin ? "No Projects Yet" : "Projects Coming Soon"}</h3>
-              <p style={{ color: C.textDim, fontSize: 13 }}>{isAdmin ? "Add your first project above to showcase your work." : "Check back soon to see our latest work."}</p>
             </div>
           )}
 
