@@ -216,6 +216,8 @@ export default function App() {
   const [ticketCommentInput, setTicketCommentInput] = useState({});
   const [adminTicketForm, setAdminTicketForm] = useState({ title: "", description: "", priority: "medium", category: "Website Change", clientId: "" });
   const [showAdminTicketForm, setShowAdminTicketForm] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", message: "" });
+  const [inviteSending, setInviteSending] = useState(false);
   const [expandedTicketId, setExpandedTicketId] = useState(null);
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
@@ -302,8 +304,30 @@ export default function App() {
     if (profiles.some(p => p.userId === newProfileForm.userId)) { showToast("Profile already exists for this user", "error"); return; }
     const np = { id: `prof-${Date.now()}`, userId: newProfileForm.userId, company: newProfileForm.company.trim(), invoices: [], contracts: [], websites: [], analytics: [], notes: "", createdAt: new Date().toISOString() };
     await saveProfiles([...profiles, np]);
+    const clientUser = users.find(u => u.id === newProfileForm.userId);
+    if (clientUser?.username) {
+      fetch("/.netlify/functions/send-invite", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: clientUser.displayName, email: clientUser.username, siteUrl: window.location.origin, welcome: true }),
+      }).catch(() => {});
+    }
     setNewProfileForm({ userId: "", company: "" });
-    showToast("Client profile created!");
+    showToast("Client profile created & welcome email sent!");
+  };
+  const sendClientInvite = async () => {
+    if (!inviteForm.email.trim()) return;
+    setInviteSending(true);
+    try {
+      await fetch("/.netlify/functions/send-invite", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: inviteForm.name.trim(), email: inviteForm.email.trim(), message: inviteForm.message.trim(), siteUrl: window.location.origin, welcome: false }),
+      });
+      showToast(`Invite sent to ${inviteForm.email.trim()}!`);
+      setInviteForm({ name: "", email: "", message: "" });
+    } catch (e) {
+      showToast("Failed to send invite", "error");
+    }
+    setInviteSending(false);
   };
   const deleteProfile = async (id) => {
     await saveProfiles(profiles.filter(p => p.id !== id));
@@ -1476,10 +1500,22 @@ export default function App() {
           {adminTab === "clients" && (<>
             {/* Profile list / create — when no profile is selected */}
             {!selectedProfileId && (<>
+              {/* Invite a new client */}
+              <div style={{ ...crd, padding: "28px 28px", marginBottom: 18 }}>
+                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>✉ Invite a Client</h3>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Send a branded email with a link to the portal. Once they sign in they'll appear below so you can create their profile.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
+                  <div><label style={lbl}>Name</label><input style={inp} placeholder="Jane Smith" value={inviteForm.name} onChange={e => setInviteForm({...inviteForm, name: e.target.value})} /></div>
+                  <div><label style={lbl}>Email *</label><input style={inp} type="email" placeholder="jane@example.com" value={inviteForm.email} onChange={e => setInviteForm({...inviteForm, email: e.target.value})} /></div>
+                </div>
+                <div style={{ marginBottom: 18 }}><label style={lbl}>Personal Note <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><textarea style={{...inp, resize:"vertical"}} rows={2} placeholder="e.g. Looking forward to working with you on your brand!" value={inviteForm.message} onChange={e => setInviteForm({...inviteForm, message: e.target.value})} /></div>
+                <button onClick={sendClientInvite} disabled={!inviteForm.email.trim() || inviteSending} style={{ ...btn, opacity: inviteForm.email.trim() && !inviteSending ? 1 : .4, cursor: inviteForm.email.trim() && !inviteSending ? "pointer" : "not-allowed" }}>{inviteSending ? "Sending…" : "Send Invite"}</button>
+              </div>
+
               {/* Create form */}
               <div style={{ ...crd, padding: "28px 28px", marginBottom: 24 }}>
                 <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>+ New Client Profile</h3>
-                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a profile for a client who has signed in. Their deliverables will appear in their portal.</p>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a profile for a client who has signed in. Their deliverables will appear in their portal. A welcome email is sent automatically.</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 18 }}>
                   <div>
                     <label style={lbl}>Client Account *</label>
