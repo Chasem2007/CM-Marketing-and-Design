@@ -209,6 +209,11 @@ export default function App() {
   const [contractForm, setContractForm] = useState({ title: "", signedDate: "", status: "pending", url: "", fileData: null, fileName: "" });
   const [websiteForm, setWebsiteForm] = useState({ title: "", url: "", liveDate: "", description: "" });
   const [analyticsForm, setAnalyticsForm] = useState({ title: "", description: "", url: "", fileData: null, fileName: "" });
+  const [tickets, setTickets] = useState([]);
+  const [ticketForm, setTicketForm] = useState({ title: "", description: "", priority: "medium", category: "Website Change" });
+  const [adminTicketFilter, setAdminTicketFilter] = useState("all");
+  const [ticketTaskInput, setTicketTaskInput] = useState({});
+  const [expandedTicketId, setExpandedTicketId] = useState(null);
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
   const projectFileRef = useRef(null);
@@ -233,6 +238,7 @@ export default function App() {
         try { const d = await storage.get("cm-projects"); if (d?.value) setProjects(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-profiles"); if (d?.value) setProfiles(JSON.parse(d.value)); } catch(e) {}
         try { const d = await storage.get("cm-content"); if (d?.value) setContent({ ...DEFAULT_CONTENT, ...JSON.parse(d.value) }); } catch(e) {}
+        try { const d = await storage.get("cm-tickets"); if (d?.value) setTickets(JSON.parse(d.value)); } catch(e) {}
       } catch(e) {}
       setLoading(false);
     })();
@@ -281,6 +287,7 @@ export default function App() {
   const saveProjects = async (v) => { setProjects(v); try { await storage.set("cm-projects", JSON.stringify(v)); } catch(e) {} };
   const saveProfiles = async (v) => { setProfiles(v); try { await storage.set("cm-profiles", JSON.stringify(v)); } catch(e) {} };
   const saveContent = async (v) => { setContent(v); try { await storage.set("cm-content", JSON.stringify(v)); } catch(e) {} };
+  const saveTickets = async (v) => { setTickets(v); try { await storage.set("cm-tickets", JSON.stringify(v)); } catch(e) {} };
 
   // ── Profile helpers ────────────────────────────────────────────
   const updateProfile = async (id, updates) => {
@@ -343,6 +350,36 @@ export default function App() {
     await saveUsers(users.filter(u => u.id !== id));
     await saveBrands(brands.map(b => ({ ...b, assignedTo: (b.assignedTo || []).filter(x => x !== id) })));
     showToast("User removed");
+  };
+
+  // ── Tickets ────────────────────────────────────────────────────
+  const submitTicket = async () => {
+    if (!ticketForm.title.trim() || !currentUser) return;
+    const t = { id: `tkt-${Date.now()}`, clientId: currentUser.id, title: ticketForm.title.trim(), description: ticketForm.description.trim(), priority: ticketForm.priority, category: ticketForm.category, status: "open", tasks: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    await saveTickets([t, ...tickets]);
+    setTicketForm({ title: "", description: "", priority: "medium", category: "Website Change" });
+    showToast("Ticket submitted!");
+  };
+  const updateTicketStatus = async (id, status) => {
+    await saveTickets(tickets.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t));
+  };
+  const addTicketTask = async (ticketId) => {
+    const text = (ticketTaskInput[ticketId] || "").trim();
+    if (!text) return;
+    const task = { id: `task-${Date.now()}`, text, done: false };
+    await saveTickets(tickets.map(t => t.id === ticketId ? { ...t, tasks: [...(t.tasks || []), task], updatedAt: new Date().toISOString() } : t));
+    setTicketTaskInput(prev => ({ ...prev, [ticketId]: "" }));
+  };
+  const toggleTicketTask = async (ticketId, taskId) => {
+    await saveTickets(tickets.map(t => t.id === ticketId ? { ...t, tasks: (t.tasks || []).map(tk => tk.id === taskId ? { ...tk, done: !tk.done } : tk), updatedAt: new Date().toISOString() } : t));
+  };
+  const removeTicketTask = async (ticketId, taskId) => {
+    await saveTickets(tickets.map(t => t.id === ticketId ? { ...t, tasks: (t.tasks || []).filter(tk => tk.id !== taskId), updatedAt: new Date().toISOString() } : t));
+  };
+  const deleteTicket = async (id) => {
+    await saveTickets(tickets.filter(t => t.id !== id));
+    if (expandedTicketId === id) setExpandedTicketId(null);
+    showToast("Ticket deleted");
   };
 
   // ── Admin: brands ──────────────────────────────────────────────
@@ -1290,7 +1327,7 @@ export default function App() {
 
           {/* Tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            {[{ k: "brands", l: `Brands (${brands.length})`, i: "✦" }, { k: "clients", l: `Clients (${profiles.length})`, i: "◎" }, { k: "users", l: `Users (${clientUsers.length})`, i: "◉" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
+            {[{ k: "brands", l: `Brands (${brands.length})`, i: "✦" }, { k: "clients", l: `Clients (${profiles.length})`, i: "◎" }, { k: "tickets", l: `Tickets (${tickets.filter(t=>t.status!=="completed").length})`, i: "◈" }, { k: "users", l: `Users (${clientUsers.length})`, i: "◉" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
               <button key={t.k} onClick={() => { setAdminTab(t.k); if (t.k === "editor" && !editContent) startEditing(); }} style={{ background: adminTab===t.k ? C.accentGlow : C.card, border: `1px solid ${adminTab===t.k ? C.accent : C.border}`, color: adminTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
             ))}
           </div>
@@ -1696,6 +1733,84 @@ export default function App() {
             })()}
           </>)}
 
+          {/* ── TICKETS TAB (ADMIN) ── */}
+          {adminTab === "tickets" && (() => {
+            const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
+            const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
+            const filtered = adminTicketFilter === "all" ? tickets : tickets.filter(t => t.status === adminTicketFilter);
+            const getUserName = (id) => users.find(u => u.id === id)?.displayName || "Unknown";
+            return (<>
+              {/* Filter bar */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
+                {[{k:"all",l:"All"},{k:"open",l:"Open"},{k:"in_progress",l:"In Progress"},{k:"completed",l:"Completed"}].map(f => (
+                  <button key={f.k} onClick={() => setAdminTicketFilter(f.k)} style={{ background: adminTicketFilter===f.k ? C.accentGlow : C.card, border: `1px solid ${adminTicketFilter===f.k ? C.accent : C.border}`, color: adminTicketFilter===f.k ? C.accent : C.textDim, padding: "7px 16px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>{f.l} {f.k==="all" ? `(${tickets.length})` : `(${tickets.filter(t=>t.status===f.k).length})`}</button>
+                ))}
+              </div>
+              {!filtered.length ? (
+                <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets {adminTicketFilter !== "all" ? `with status "${adminTicketFilter}"` : "yet"}.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {filtered.map((tkt, i) => {
+                    const isExpanded = expandedTicketId === tkt.id;
+                    const doneTasks = (tkt.tasks||[]).filter(tk => tk.done).length;
+                    const totalTasks = (tkt.tasks||[]).length;
+                    return (
+                      <div key={tkt.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                        {/* Ticket header */}
+                        <div onClick={() => setExpandedTicketId(isExpanded ? null : tkt.id)} style={{ padding: "18px 22px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                              <span style={{ fontWeight: 700, fontSize: 15, color: C.white }}>{tkt.title}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${PRIORITY_COLOR[tkt.priority]}15`, color: PRIORITY_COLOR[tkt.priority] }}>{tkt.priority}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${STATUS_COLOR[tkt.status]}15`, color: STATUS_COLOR[tkt.status] }}>{tkt.status.replace("_"," ")}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 12, fontSize: 12, color: C.textDim, flexWrap: "wrap" }}>
+                              <span>From: <b style={{ color: C.text }}>{getUserName(tkt.clientId)}</b></span>
+                              <span>Category: <b style={{ color: C.text }}>{tkt.category}</b></span>
+                              {totalTasks > 0 && <span style={{ color: doneTasks===totalTasks ? C.success : C.textDim }}>{doneTasks}/{totalTasks} tasks done</span>}
+                              <span>{new Date(tkt.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                            <select value={tkt.status} onChange={e => { e.stopPropagation(); updateTicketStatus(tkt.id, e.target.value); }} onClick={e => e.stopPropagation()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "6px 10px", borderRadius: 7, fontSize: 12, fontFamily: F, cursor: "pointer" }}>
+                              <option value="open">Open</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                            <button onClick={e => { e.stopPropagation(); deleteTicket(tkt.id); }} style={{ background: C.dangerBg, border: "none", color: C.danger, width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 12 }}>✕</button>
+                            <span style={{ color: C.textDim, fontSize: 13 }}>{isExpanded ? "▲" : "▼"}</span>
+                          </div>
+                        </div>
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div style={{ borderTop: `1px solid ${C.border}`, padding: "20px 22px" }}>
+                            {tkt.description && <p style={{ color: C.text, fontSize: 13, lineHeight: 1.7, marginBottom: 20, whiteSpace: "pre-wrap" }}>{tkt.description}</p>}
+                            {/* Task checklist */}
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Checklist</div>
+                              {(tkt.tasks||[]).map(tk => (
+                                <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
+                                  <div onClick={() => toggleTicketTask(tkt.id, tk.id)} style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${tk.done ? C.success : C.border}`, background: tk.done ? C.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: C.bg, fontSize: 11, fontWeight: 700 }}>{tk.done ? "✓" : ""}</div>
+                                  <span style={{ flex: 1, fontSize: 13, color: tk.done ? C.textDim : C.white, textDecoration: tk.done ? "line-through" : "none" }}>{tk.text}</span>
+                                  <button onClick={() => removeTicketTask(tkt.id, tk.id)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 13, padding: "0 4px" }}>✕</button>
+                                </div>
+                              ))}
+                              {/* Add task input */}
+                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add a task..." value={ticketTaskInput[tkt.id] || ""} onChange={e => setTicketTaskInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => e.key === "Enter" && addTicketTask(tkt.id)} />
+                                <button onClick={() => addTicketTask(tkt.id)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Add</button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>);
+          })()}
+
           {/* ══════════════════════════════════════════════════════
                SITE EDITOR TAB (CMS)
                
@@ -1867,6 +1982,7 @@ export default function App() {
                 { k: "contracts", l: `Contracts (${(myProfile.contracts||[]).length})`, i: "◉" },
                 { k: "websites", l: `Websites (${(myProfile.websites||[]).length})`, i: "⊕" },
                 { k: "analytics", l: `Analytics (${(myProfile.analytics||[]).length})`, i: "▲" },
+                { k: "tickets", l: `Tickets (${tickets.filter(t=>t.clientId===currentUser?.id).length})`, i: "◈" },
               ].map(t => (
                 <button key={t.k} onClick={() => setClientTab(t.k)} style={{ background: clientTab===t.k ? C.accentGlow : C.card, border: `1px solid ${clientTab===t.k ? C.accent : C.border}`, color: clientTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
               ))}
@@ -1881,6 +1997,7 @@ export default function App() {
                   { label: "Contracts", count: (myProfile.contracts||[]).length, icon: "◉", color: C.purple, tab: "contracts" },
                   { label: "Websites", count: (myProfile.websites||[]).length, icon: "⊕", color: C.success, tab: "websites" },
                   { label: "Analytics", count: (myProfile.analytics||[]).length, icon: "▲", color: "#f97316", tab: "analytics" },
+                  { label: "Tickets", count: tickets.filter(t=>t.clientId===currentUser?.id).length, icon: "◈", color: C.purple, tab: "tickets" },
                 ].map(s => (
                   <div key={s.tab} onClick={() => setClientTab(s.tab)} style={{ ...crd, padding: "26px 22px", cursor: "pointer", transition: "all .2s" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
@@ -1998,6 +2115,66 @@ export default function App() {
                 ))}
               </div>
             )}
+
+            {/* Tickets */}
+            {clientTab === "tickets" && (() => {
+              const myTickets = tickets.filter(t => t.clientId === currentUser?.id);
+              const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
+              const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
+              return (<>
+                {/* Submit form */}
+                <div style={{ ...crd, padding: "28px", marginBottom: 24 }}>
+                  <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>Submit a Ticket</h3>
+                  <p style={{ color: C.textDim, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Describe the change or request you need. We'll review it and get it done.</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
+                    <div style={{ gridColumn: "1/-1" }}><label style={lbl}>Title *</label><input style={inp} placeholder="e.g. Update homepage hero text" value={ticketForm.title} onChange={e => setTicketForm({...ticketForm, title: e.target.value})} /></div>
+                    <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.category} onChange={e => setTicketForm({...ticketForm, category: e.target.value})}>{["Website Change","Content Update","Bug Fix","New Feature","Design Request","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
+                    <div><label style={lbl}>Priority</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+                  </div>
+                  <div style={{ marginBottom: 18 }}><label style={lbl}>Description</label><textarea style={{...inp, resize:"vertical"}} rows={4} placeholder="Describe what you need in detail..." value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} /></div>
+                  <button onClick={submitTicket} disabled={!ticketForm.title.trim()} style={{ ...btn, opacity: ticketForm.title.trim() ? 1 : .4, cursor: ticketForm.title.trim() ? "pointer" : "not-allowed" }}>Submit Ticket</button>
+                </div>
+                {/* Ticket list */}
+                {!myTickets.length ? (
+                  <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets yet. Submit one above.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {myTickets.map((tkt, i) => {
+                      const doneTasks = (tkt.tasks||[]).filter(tk => tk.done).length;
+                      const totalTasks = (tkt.tasks||[]).length;
+                      return (
+                        <div key={tkt.id} style={{ ...crd, padding: "20px 24px", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+                                <span style={{ fontWeight: 700, fontSize: 15, color: C.white }}>{tkt.title}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${PRIORITY_COLOR[tkt.priority]}15`, color: PRIORITY_COLOR[tkt.priority] }}>{tkt.priority}</span>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${STATUS_COLOR[tkt.status]}15`, color: STATUS_COLOR[tkt.status] }}>{tkt.status.replace("_"," ")}</span>
+                              </div>
+                              <div style={{ fontSize: 12, color: C.textDim }}>{tkt.category} · {new Date(tkt.createdAt).toLocaleDateString()}</div>
+                              {tkt.description && <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, marginTop: 8, whiteSpace: "pre-wrap" }}>{tkt.description}</p>}
+                            </div>
+                          </div>
+                          {totalTasks > 0 && (
+                            <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Progress — {doneTasks}/{totalTasks} done</div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                {(tkt.tasks||[]).map(tk => (
+                                  <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${tk.done ? C.success : C.border}`, background: tk.done ? C.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: C.bg, fontSize: 10, fontWeight: 700 }}>{tk.done ? "✓" : ""}</div>
+                                    <span style={{ fontSize: 13, color: tk.done ? C.textDim : C.text, textDecoration: tk.done ? "line-through" : "none" }}>{tk.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>);
+            })()}
           </>)}
         </section>
       )}
