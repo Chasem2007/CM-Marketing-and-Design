@@ -213,6 +213,9 @@ export default function App() {
   const [ticketForm, setTicketForm] = useState({ title: "", description: "", priority: "medium", category: "Website Change" });
   const [adminTicketFilter, setAdminTicketFilter] = useState("all");
   const [ticketTaskInput, setTicketTaskInput] = useState({});
+  const [ticketCommentInput, setTicketCommentInput] = useState({});
+  const [adminTicketForm, setAdminTicketForm] = useState({ title: "", description: "", priority: "medium", category: "Website Change", clientId: "" });
+  const [showAdminTicketForm, setShowAdminTicketForm] = useState(false);
   const [expandedTicketId, setExpandedTicketId] = useState(null);
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
@@ -355,13 +358,28 @@ export default function App() {
   // ── Tickets ────────────────────────────────────────────────────
   const submitTicket = async () => {
     if (!ticketForm.title.trim() || !currentUser) return;
-    const t = { id: `tkt-${Date.now()}`, clientId: currentUser.id, title: ticketForm.title.trim(), description: ticketForm.description.trim(), priority: ticketForm.priority, category: ticketForm.category, status: "open", tasks: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const t = { id: `tkt-${Date.now()}`, clientId: currentUser.id, title: ticketForm.title.trim(), description: ticketForm.description.trim(), priority: ticketForm.priority, category: ticketForm.category, status: "open", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await saveTickets([t, ...tickets]);
     setTicketForm({ title: "", description: "", priority: "medium", category: "Website Change" });
+    fetch("/.netlify/functions/ticket-notify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "new_ticket", ticketTitle: t.title, ticketDescription: t.description, priority: t.priority, category: t.category, clientName: currentUser.displayName, clientEmail: currentUser.username }),
+    }).catch(() => {});
     showToast("Ticket submitted!");
   };
   const updateTicketStatus = async (id, status) => {
-    await saveTickets(tickets.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t));
+    const updatedTickets = tickets.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t);
+    await saveTickets(updatedTickets);
+    const ticket = updatedTickets.find(t => t.id === id);
+    if (ticket && ticket.clientId && ticket.clientId !== currentUser?.id) {
+      const clientUser = users.find(u => u.id === ticket.clientId);
+      if (clientUser?.username) {
+        fetch("/.netlify/functions/ticket-notify", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "status_update", ticketTitle: ticket.title, newStatus: status, recipientEmail: clientUser.username, recipientName: clientUser.displayName }),
+        }).catch(() => {});
+      }
+    }
   };
   const addTicketTask = async (ticketId) => {
     const text = (ticketTaskInput[ticketId] || "").trim();
@@ -380,6 +398,50 @@ export default function App() {
     await saveTickets(tickets.filter(t => t.id !== id));
     if (expandedTicketId === id) setExpandedTicketId(null);
     showToast("Ticket deleted");
+  };
+  const submitAdminTicket = async () => {
+    if (!adminTicketForm.title.trim() || !currentUser) return;
+    const t = { id: `tkt-${Date.now()}`, clientId: adminTicketForm.clientId || currentUser.id, createdBy: "admin", title: adminTicketForm.title.trim(), description: adminTicketForm.description.trim(), priority: adminTicketForm.priority, category: adminTicketForm.category, status: "in_progress", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    await saveTickets([t, ...tickets]);
+    if (adminTicketForm.clientId) {
+      const clientUser = users.find(u => u.id === adminTicketForm.clientId);
+      if (clientUser?.username) {
+        fetch("/.netlify/functions/ticket-notify", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "new_ticket_for_client", ticketTitle: t.title, ticketDescription: t.description, priority: t.priority, category: t.category, recipientEmail: clientUser.username, recipientName: clientUser.displayName }),
+        }).catch(() => {});
+      }
+    }
+    setAdminTicketForm({ title: "", description: "", priority: "medium", category: "Website Change", clientId: "" });
+    setShowAdminTicketForm(false);
+    showToast("Ticket created!");
+  };
+  const addTicketComment = async (ticketId, isAdminComment) => {
+    const text = (ticketCommentInput[ticketId] || "").trim();
+    if (!text || !currentUser) return;
+    const comment = { id: `cmt-${Date.now()}`, authorId: currentUser.id, authorName: currentUser.displayName, isAdmin: isAdminComment, text, createdAt: new Date().toISOString() };
+    const updatedTickets = tickets.map(t => t.id === ticketId ? { ...t, comments: [...(t.comments || []), comment], updatedAt: new Date().toISOString() } : t);
+    await saveTickets(updatedTickets);
+    setTicketCommentInput(prev => ({ ...prev, [ticketId]: "" }));
+    const ticket = updatedTickets.find(t => t.id === ticketId);
+    if (isAdminComment && ticket) {
+      const clientUser = users.find(u => u.id === ticket.clientId);
+      if (clientUser?.username && clientUser.id !== currentUser.id) {
+        fetch("/.netlify/functions/ticket-notify", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "new_comment", ticketTitle: ticket.title, commentText: text, authorName: currentUser.displayName, recipientEmail: clientUser.username, recipientName: clientUser.displayName, isAdminToClient: true }),
+        }).catch(() => {});
+      }
+    } else if (!isAdminComment && ticket) {
+      fetch("/.netlify/functions/ticket-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "new_comment", ticketTitle: ticket.title, commentText: text, authorName: currentUser.displayName, isAdminToClient: false }),
+      }).catch(() => {});
+    }
+    showToast("Comment added");
+  };
+  const removeTicketComment = async (ticketId, commentId) => {
+    await saveTickets(tickets.map(t => t.id === ticketId ? { ...t, comments: (t.comments || []).filter(c => c.id !== commentId), updatedAt: new Date().toISOString() } : t));
   };
 
   // ── Admin: brands ──────────────────────────────────────────────
@@ -406,7 +468,7 @@ export default function App() {
     
     All stored as part of the brand object in cm-brands storage.
   */
-  const openBrand = (id) => { setSelectedBrandId(id); setBrandKitTab("colors"); setPage("brand"); window.scrollTo({ top: 0 }); };
+  const openBrand = (id) => { setSelectedBrandId(id); setBrandKitTab(currentUser?.role === "admin" ? "colors" : "logos"); setPage("brand"); window.scrollTo({ top: 0 }); };
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
 
   const updateBrand = async (id, updates) => {
@@ -1740,12 +1802,31 @@ export default function App() {
             const filtered = adminTicketFilter === "all" ? tickets : tickets.filter(t => t.status === adminTicketFilter);
             const getUserName = (id) => users.find(u => u.id === id)?.displayName || "Unknown";
             return (<>
-              {/* Filter bar */}
-              <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
-                {[{k:"all",l:"All"},{k:"open",l:"Open"},{k:"in_progress",l:"In Progress"},{k:"completed",l:"Completed"}].map(f => (
-                  <button key={f.k} onClick={() => setAdminTicketFilter(f.k)} style={{ background: adminTicketFilter===f.k ? C.accentGlow : C.card, border: `1px solid ${adminTicketFilter===f.k ? C.accent : C.border}`, color: adminTicketFilter===f.k ? C.accent : C.textDim, padding: "7px 16px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>{f.l} {f.k==="all" ? `(${tickets.length})` : `(${tickets.filter(t=>t.status===f.k).length})`}</button>
-                ))}
+              {/* Header: filters + new ticket button */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showAdminTicketForm ? 16 : 24, flexWrap: "wrap", gap: 12 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[{k:"all",l:"All"},{k:"open",l:"Open"},{k:"in_progress",l:"In Progress"},{k:"completed",l:"Completed"}].map(f => (
+                    <button key={f.k} onClick={() => setAdminTicketFilter(f.k)} style={{ background: adminTicketFilter===f.k ? C.accentGlow : C.card, border: `1px solid ${adminTicketFilter===f.k ? C.accent : C.border}`, color: adminTicketFilter===f.k ? C.accent : C.textDim, padding: "7px 16px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: F }}>{f.l} {f.k==="all" ? `(${tickets.length})` : `(${tickets.filter(t=>t.status===f.k).length})`}</button>
+                  ))}
+                </div>
+                <button onClick={() => setShowAdminTicketForm(!showAdminTicketForm)} style={{ ...btn, padding: "9px 20px", fontSize: 13 }}>{showAdminTicketForm ? "✕ Cancel" : "+ New Ticket"}</button>
               </div>
+              {showAdminTicketForm && (
+                <div style={{ ...crd, padding: "28px 24px", marginBottom: 24 }}>
+                  <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>Create Ticket</h3>
+                  <p style={{ color: C.textDim, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Log work, leave a client update, or track something in progress.</p>
+                  <div style={{ display: "grid", gap: 14, marginBottom: 14 }}>
+                    <div><label style={lbl}>Title *</label><input style={inp} placeholder="e.g. Build out homepage sections" value={adminTicketForm.title} onChange={e => setAdminTicketForm({...adminTicketForm, title: e.target.value})} /></div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
+                      <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.category} onChange={e => setAdminTicketForm({...adminTicketForm, category: e.target.value})}>{["Website Change","Content Update","Bug Fix","New Feature","Design Request","Internal","Client Update","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
+                      <div><label style={lbl}>Priority</label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.priority} onChange={e => setAdminTicketForm({...adminTicketForm, priority: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+                      <div><label style={lbl}>Assign to Client <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.clientId} onChange={e => setAdminTicketForm({...adminTicketForm, clientId: e.target.value})}><option value="">Internal / No client</option>{clientUsers.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}</select></div>
+                    </div>
+                    <div><label style={lbl}>Description</label><textarea style={{...inp, resize:"vertical"}} rows={4} placeholder="Describe what needs to be done..." value={adminTicketForm.description} onChange={e => setAdminTicketForm({...adminTicketForm, description: e.target.value})} /></div>
+                  </div>
+                  <button onClick={submitAdminTicket} disabled={!adminTicketForm.title.trim()} style={{ ...btn, opacity: adminTicketForm.title.trim() ? 1 : .4, cursor: adminTicketForm.title.trim() ? "pointer" : "not-allowed" }}>Create Ticket</button>
+                </div>
+              )}
               {!filtered.length ? (
                 <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets {adminTicketFilter !== "all" ? `with status "${adminTicketFilter}"` : "yet"}.</div>
               ) : (
@@ -1799,6 +1880,31 @@ export default function App() {
                               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                                 <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add a task..." value={ticketTaskInput[tkt.id] || ""} onChange={e => setTicketTaskInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => e.key === "Enter" && addTicketTask(tkt.id)} />
                                 <button onClick={() => addTicketTask(tkt.id)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Add</button>
+                              </div>
+                            </div>
+                            {/* Comments & Updates */}
+                            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Comments & Updates</div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+                                {(tkt.comments || []).map(cmt => (
+                                  <div key={cmt.id} style={{ display: "flex", gap: 10 }}>
+                                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: cmt.isAdmin ? C.accentGlow : C.bgAlt, border: `1px solid ${cmt.isAdmin ? C.accent : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: cmt.isAdmin ? C.accent : C.textDim, flexShrink: 0 }}>{cmt.authorName.charAt(0).toUpperCase()}</div>
+                                    <div style={{ flex: 1, background: C.bgAlt, borderRadius: 10, padding: "10px 14px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: C.white }}>{cmt.authorName}</span>
+                                        {cmt.isAdmin && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>CM Team</span>}
+                                        <span style={{ fontSize: 11, color: C.textDim, marginLeft: "auto" }}>{new Date(cmt.createdAt).toLocaleDateString()}</span>
+                                        <button onClick={() => removeTicketComment(tkt.id, cmt.id)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✕</button>
+                                      </div>
+                                      <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{cmt.text}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {!(tkt.comments || []).length && <p style={{ color: C.textDim, fontSize: 12, margin: 0 }}>No comments yet.</p>}
+                              </div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add an update visible to client..." value={ticketCommentInput[tkt.id] || ""} onChange={e => setTicketCommentInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { addTicketComment(tkt.id, true); e.preventDefault(); }}} />
+                                <button onClick={() => addTicketComment(tkt.id, true)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Post</button>
                               </div>
                             </div>
                           </div>
@@ -1966,27 +2072,31 @@ export default function App() {
             {myProfile?.company && <p style={{ color: C.textDim, fontSize: 14 }}>{myProfile.company}</p>}
           </div>
 
-          {!myProfile ? (
+          {/* Tab bar — Tickets always visible; other tabs need a profile */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
+            <button onClick={() => setClientTab("tickets")} style={{ background: clientTab==="tickets" ? C.accentGlow : C.card, border: `1px solid ${clientTab==="tickets" ? C.accent : C.border}`, color: clientTab==="tickets" ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>◈ Tickets ({tickets.filter(t=>t.clientId===currentUser?.id).length})</button>
+            {myProfile && [
+              { k: "overview", l: "Overview", i: "◈" },
+              { k: "brands", l: `Brand Kits (${clientBrands.length})`, i: "✦" },
+              { k: "invoices", l: `Invoices (${(myProfile.invoices||[]).length})`, i: "◆" },
+              { k: "contracts", l: `Contracts (${(myProfile.contracts||[]).length})`, i: "◉" },
+              { k: "websites", l: `Websites (${(myProfile.websites||[]).length})`, i: "⊕" },
+              { k: "analytics", l: `Analytics (${(myProfile.analytics||[]).length})`, i: "▲" },
+            ].map(t => (
+              <button key={t.k} onClick={() => setClientTab(t.k)} style={{ background: clientTab===t.k ? C.accentGlow : C.card, border: `1px solid ${clientTab===t.k ? C.accent : C.border}`, color: clientTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
+            ))}
+          </div>
+
+          {/* No profile + not on tickets → workspace pending message */}
+          {!myProfile && clientTab !== "tickets" && (
             <div style={{ ...crd, padding: "64px 36px", textAlign: "center" }}>
               <div style={{ fontFamily: D, fontSize: 42, fontWeight: 700, color: C.accent, opacity: .3, marginBottom: 16 }}>◎</div>
               <h3 style={{ fontFamily: D, fontSize: 20, color: C.white, fontWeight: 700, marginBottom: 8 }}>Your workspace is being prepared</h3>
               <p style={{ color: C.textDim, fontSize: 14, maxWidth: 360, margin: "0 auto" }}>Your account is ready. CM will add your deliverables here once your project gets started.</p>
             </div>
-          ) : (<>
-            {/* Tabs */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-              {[
-                { k: "overview", l: "Overview", i: "◈" },
-                { k: "brands", l: `Brand Kits (${clientBrands.length})`, i: "✦" },
-                { k: "invoices", l: `Invoices (${(myProfile.invoices||[]).length})`, i: "◆" },
-                { k: "contracts", l: `Contracts (${(myProfile.contracts||[]).length})`, i: "◉" },
-                { k: "websites", l: `Websites (${(myProfile.websites||[]).length})`, i: "⊕" },
-                { k: "analytics", l: `Analytics (${(myProfile.analytics||[]).length})`, i: "▲" },
-                { k: "tickets", l: `Tickets (${tickets.filter(t=>t.clientId===currentUser?.id).length})`, i: "◈" },
-              ].map(t => (
-                <button key={t.k} onClick={() => setClientTab(t.k)} style={{ background: clientTab===t.k ? C.accentGlow : C.card, border: `1px solid ${clientTab===t.k ? C.accent : C.border}`, color: clientTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
-              ))}
-            </div>
+          )}
+
+          {myProfile && (<>
 
             {/* Overview */}
             {clientTab === "overview" && (
@@ -2116,66 +2226,97 @@ export default function App() {
               </div>
             )}
 
-            {/* Tickets */}
-            {clientTab === "tickets" && (() => {
-              const myTickets = tickets.filter(t => t.clientId === currentUser?.id);
-              const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
-              const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
-              return (<>
-                {/* Submit form */}
-                <div style={{ ...crd, padding: "28px", marginBottom: 24 }}>
-                  <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>Submit a Ticket</h3>
-                  <p style={{ color: C.textDim, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Describe the change or request you need. We'll review it and get it done.</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
-                    <div style={{ gridColumn: "1/-1" }}><label style={lbl}>Title *</label><input style={inp} placeholder="e.g. Update homepage hero text" value={ticketForm.title} onChange={e => setTicketForm({...ticketForm, title: e.target.value})} /></div>
-                    <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.category} onChange={e => setTicketForm({...ticketForm, category: e.target.value})}>{["Website Change","Content Update","Bug Fix","New Feature","Design Request","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
-                    <div><label style={lbl}>Priority</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-                  </div>
-                  <div style={{ marginBottom: 18 }}><label style={lbl}>Description</label><textarea style={{...inp, resize:"vertical"}} rows={4} placeholder="Describe what you need in detail..." value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} /></div>
-                  <button onClick={submitTicket} disabled={!ticketForm.title.trim()} style={{ ...btn, opacity: ticketForm.title.trim() ? 1 : .4, cursor: ticketForm.title.trim() ? "pointer" : "not-allowed" }}>Submit Ticket</button>
+          </>)}
+
+          {/* Tickets — always available regardless of profile */}
+          {clientTab === "tickets" && (() => {
+            const myTickets = tickets.filter(t => t.clientId === currentUser?.id);
+            const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
+            const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
+            return (<>
+              <div style={{ ...crd, padding: "28px", marginBottom: 24 }}>
+                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>Submit a Ticket</h3>
+                <p style={{ color: C.textDim, fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>Describe the change or request you need. We'll review it and get it done.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
+                  <div style={{ gridColumn: "1/-1" }}><label style={lbl}>Title *</label><input style={inp} placeholder="e.g. Update homepage hero text" value={ticketForm.title} onChange={e => setTicketForm({...ticketForm, title: e.target.value})} /></div>
+                  <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.category} onChange={e => setTicketForm({...ticketForm, category: e.target.value})}>{["Website Change","Content Update","Bug Fix","New Feature","Design Request","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
+                  <div><label style={lbl}>Priority</label><select style={{...inp, cursor:"pointer"}} value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
                 </div>
-                {/* Ticket list */}
-                {!myTickets.length ? (
-                  <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets yet. Submit one above.</div>
-                ) : (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {myTickets.map((tkt, i) => {
-                      const doneTasks = (tkt.tasks||[]).filter(tk => tk.done).length;
-                      const totalTasks = (tkt.tasks||[]).length;
-                      return (
-                        <div key={tkt.id} style={{ ...crd, padding: "20px 24px", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
-                                <span style={{ fontWeight: 700, fontSize: 15, color: C.white }}>{tkt.title}</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${PRIORITY_COLOR[tkt.priority]}15`, color: PRIORITY_COLOR[tkt.priority] }}>{tkt.priority}</span>
-                                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${STATUS_COLOR[tkt.status]}15`, color: STATUS_COLOR[tkt.status] }}>{tkt.status.replace("_"," ")}</span>
-                              </div>
-                              <div style={{ fontSize: 12, color: C.textDim }}>{tkt.category} · {new Date(tkt.createdAt).toLocaleDateString()}</div>
-                              {tkt.description && <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, marginTop: 8, whiteSpace: "pre-wrap" }}>{tkt.description}</p>}
+                <div style={{ marginBottom: 18 }}><label style={lbl}>Description</label><textarea style={{...inp, resize:"vertical"}} rows={4} placeholder="Describe what you need in detail..." value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} /></div>
+                <button onClick={submitTicket} disabled={!ticketForm.title.trim()} style={{ ...btn, opacity: ticketForm.title.trim() ? 1 : .4, cursor: ticketForm.title.trim() ? "pointer" : "not-allowed" }}>Submit Ticket</button>
+              </div>
+              {!myTickets.length ? (
+                <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets yet. Submit one above.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {myTickets.map((tkt, i) => {
+                    const isExpanded = expandedTicketId === tkt.id;
+                    const doneTasks = (tkt.tasks||[]).filter(tk => tk.done).length;
+                    const totalTasks = (tkt.tasks||[]).length;
+                    const adminCommentCount = (tkt.comments||[]).filter(c => c.isAdmin).length;
+                    return (
+                      <div key={tkt.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                        <div onClick={() => setExpandedTicketId(isExpanded ? null : tkt.id)} style={{ padding: "20px 24px", cursor: "pointer", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+                              <span style={{ fontWeight: 700, fontSize: 15, color: C.white }}>{tkt.title}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${PRIORITY_COLOR[tkt.priority]}15`, color: PRIORITY_COLOR[tkt.priority] }}>{tkt.priority}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${STATUS_COLOR[tkt.status]}15`, color: STATUS_COLOR[tkt.status] }}>{tkt.status.replace("_"," ")}</span>
+                              {adminCommentCount > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: C.accentGlow, color: C.accent }}>{adminCommentCount} update{adminCommentCount!==1?"s":""}</span>}
                             </div>
+                            <div style={{ fontSize: 12, color: C.textDim }}>{tkt.category} · {new Date(tkt.createdAt).toLocaleDateString()}</div>
                           </div>
-                          {totalTasks > 0 && (
-                            <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Progress — {doneTasks}/{totalTasks} done</div>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                {(tkt.tasks||[]).map(tk => (
-                                  <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${tk.done ? C.success : C.border}`, background: tk.done ? C.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: C.bg, fontSize: 10, fontWeight: 700 }}>{tk.done ? "✓" : ""}</div>
-                                    <span style={{ fontSize: 13, color: tk.done ? C.textDim : C.text, textDecoration: tk.done ? "line-through" : "none" }}>{tk.text}</span>
+                          <span style={{ color: C.textDim, fontSize: 13, flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</span>
+                        </div>
+                        {isExpanded && (
+                          <div style={{ borderTop: `1px solid ${C.border}`, padding: "20px 24px" }}>
+                            {tkt.description && <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, marginBottom: 16, whiteSpace: "pre-wrap" }}>{tkt.description}</p>}
+                            {totalTasks > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Progress — {doneTasks}/{totalTasks} done</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                  {(tkt.tasks||[]).map(tk => (
+                                    <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${tk.done ? C.success : C.border}`, background: tk.done ? C.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: C.bg, fontSize: 10, fontWeight: 700 }}>{tk.done ? "✓" : ""}</div>
+                                      <span style={{ fontSize: 13, color: tk.done ? C.textDim : C.text, textDecoration: tk.done ? "line-through" : "none" }}>{tk.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {/* Comments */}
+                            <div style={{ borderTop: totalTasks > 0 ? `1px solid ${C.border}` : "none", paddingTop: totalTasks > 0 ? 16 : 0 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Comments & Updates</div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+                                {(tkt.comments || []).map(cmt => (
+                                  <div key={cmt.id} style={{ display: "flex", gap: 10 }}>
+                                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: cmt.isAdmin ? C.accentGlow : C.bgAlt, border: `1px solid ${cmt.isAdmin ? C.accent : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: cmt.isAdmin ? C.accent : C.textDim, flexShrink: 0 }}>{cmt.authorName.charAt(0).toUpperCase()}</div>
+                                    <div style={{ flex: 1, background: C.bgAlt, borderRadius: 10, padding: "10px 14px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: C.white }}>{cmt.authorName}</span>
+                                        {cmt.isAdmin && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>CM Team</span>}
+                                        <span style={{ fontSize: 11, color: C.textDim, marginLeft: "auto" }}>{new Date(cmt.createdAt).toLocaleDateString()}</span>
+                                      </div>
+                                      <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{cmt.text}</p>
+                                    </div>
                                   </div>
                                 ))}
+                                {!(tkt.comments || []).length && <p style={{ color: C.textDim, fontSize: 12, margin: 0 }}>No updates yet.</p>}
+                              </div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add a reply or question..." value={ticketCommentInput[tkt.id] || ""} onChange={e => setTicketCommentInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { addTicketComment(tkt.id, false); e.preventDefault(); }}} />
+                                <button onClick={() => addTicketComment(tkt.id, false)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Reply</button>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>);
-            })()}
-          </>)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>);
+          })()}
         </section>
       )}
 
@@ -2203,7 +2344,10 @@ export default function App() {
 
           {/* Brand Kit tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            {[{ k: "colors", l: "Colors", i: "◆" }, { k: "logos", l: "Logos", i: "◈" }, { k: "mood", l: "Mood Board", i: "◉" }, { k: "fonts", l: "Fonts", i: "Aa" }].map(t => (
+            {(isAdmin
+              ? [{ k: "colors", l: "Colors", i: "◆" }, { k: "logos", l: "Logos", i: "◈" }, { k: "mood", l: "Mood Board", i: "◉" }, { k: "fonts", l: "Fonts", i: "Aa" }]
+              : [{ k: "logos", l: "Logos", i: "◈" }, { k: "mood", l: "Marketing Materials", i: "◉" }]
+            ).map(t => (
               <button key={t.k} onClick={() => setBrandKitTab(t.k)} style={{ background: brandKitTab===t.k ? C.accentGlow : C.card, border: `1px solid ${brandKitTab===t.k ? C.accent : C.border}`, color: brandKitTab===t.k ? C.accent : C.textDim, padding: "10px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
             ))}
           </div>
