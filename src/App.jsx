@@ -190,7 +190,7 @@ export default function App() {
   const [brandForm, setBrandForm] = useState({ name: "", category: "Logo Design", notes: "", assignedTo: "" });
   const [brandImage, setBrandImage] = useState(null);
   const [toast, setToast] = useState(null);
-  const [adminTab, setAdminTab] = useState("brands");
+  const [adminTab, setAdminTab] = useState("clients");
   const [cmsSection, setCmsSection] = useState("hero");
   const [cmsUnsaved, setCmsUnsaved] = useState(false);
   const [contactForm, setContactForm] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", services: [] });
@@ -204,10 +204,10 @@ export default function App() {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [clientTab, setClientTab] = useState("overview");
-  const [newProfileForm, setNewProfileForm] = useState({ userId: "", company: "" });
+  const [newProfileForm, setNewProfileForm] = useState({ name: "", email: "", company: "" });
   const [invoiceForm, setInvoiceForm] = useState({ title: "", amount: "", dueDate: "", status: "unpaid", url: "", fileData: null, fileName: "" });
   const [contractForm, setContractForm] = useState({ title: "", signedDate: "", status: "pending", url: "", fileData: null, fileName: "" });
-  const [websiteForm, setWebsiteForm] = useState({ title: "", url: "", liveDate: "", description: "" });
+  const [websiteForm, setWebsiteForm] = useState({ title: "", url: "", liveDate: "", description: "", progress: 0, estimatedTimeline: "", phase: "Planning" });
   const [analyticsForm, setAnalyticsForm] = useState({ title: "", description: "", url: "", fileData: null, fileName: "" });
   const [tickets, setTickets] = useState([]);
   const [ticketForm, setTicketForm] = useState({ title: "", description: "", priority: "medium", category: "Website Change" });
@@ -218,6 +218,7 @@ export default function App() {
   const [showAdminTicketForm, setShowAdminTicketForm] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", message: "" });
   const [inviteSending, setInviteSending] = useState(false);
+  const [profileBrandForm, setProfileBrandForm] = useState({ name: "", category: "Logo Design", notes: "" });
   const [expandedTicketId, setExpandedTicketId] = useState(null);
   const fileRef = useRef(null);
   const brandFileRef = useRef(null);
@@ -269,6 +270,23 @@ export default function App() {
       storage.set("cm-users", JSON.stringify(updated)).catch(() => {});
       return updated;
     });
+    // Auto-link pending profile if email matches
+    const email = user.primaryEmailAddress?.emailAddress || user.username;
+    if (email) {
+      setProfiles(prev => {
+        const pendingIdx = prev.findIndex(p => p.pendingEmail === email && p.userId?.startsWith("pre-"));
+        if (pendingIdx === -1) return prev;
+        const oldPreId = prev[pendingIdx].userId;
+        const updated = prev.map((p, i) => i === pendingIdx ? { ...p, userId: user.id } : p);
+        storage.set("cm-profiles", JSON.stringify(updated)).catch(() => {});
+        setBrands(prevBrands => {
+          const updatedBrands = prevBrands.map(b => ({ ...b, assignedTo: (b.assignedTo || []).map(id => id === oldPreId ? user.id : id) }));
+          storage.set("cm-brands", JSON.stringify(updatedBrands)).catch(() => {});
+          return updatedBrands;
+        });
+        return updated;
+      });
+    }
   }, [clerkLoaded, isSignedIn, user]);
 
   // ── Redirect to home on sign-out if on protected page ─────────
@@ -300,19 +318,19 @@ export default function App() {
     await saveProfiles(updated);
   };
   const createProfile = async () => {
-    if (!newProfileForm.userId) { showToast("Select a user", "error"); return; }
-    if (profiles.some(p => p.userId === newProfileForm.userId)) { showToast("Profile already exists for this user", "error"); return; }
-    const np = { id: `prof-${Date.now()}`, userId: newProfileForm.userId, company: newProfileForm.company.trim(), invoices: [], contracts: [], websites: [], analytics: [], notes: "", createdAt: new Date().toISOString() };
+    if (!newProfileForm.email.trim()) { showToast("Email is required", "error"); return; }
+    const emailLower = newProfileForm.email.trim().toLowerCase();
+    const exists = profiles.some(p => p.pendingEmail?.toLowerCase() === emailLower || users.find(u => u.id === p.userId)?.username?.toLowerCase() === emailLower);
+    if (exists) { showToast("A profile already exists for this email", "error"); return; }
+    const tempId = `pre-${Date.now()}`;
+    const np = { id: `prof-${Date.now()}`, userId: tempId, pendingEmail: newProfileForm.email.trim(), pendingName: newProfileForm.name.trim(), company: newProfileForm.company.trim(), invoices: [], contracts: [], websites: [], analytics: [], notes: "", createdAt: new Date().toISOString() };
     await saveProfiles([...profiles, np]);
-    const clientUser = users.find(u => u.id === newProfileForm.userId);
-    if (clientUser?.username) {
-      fetch("/.netlify/functions/send-invite", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: clientUser.displayName, email: clientUser.username, siteUrl: window.location.origin, welcome: true }),
-      }).catch(() => {});
-    }
-    setNewProfileForm({ userId: "", company: "" });
-    showToast("Client profile created & welcome email sent!");
+    fetch("/.netlify/functions/send-invite", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newProfileForm.name.trim(), email: newProfileForm.email.trim(), siteUrl: window.location.origin, welcome: false }),
+    }).catch(() => {});
+    setNewProfileForm({ name: "", email: "", company: "" });
+    showToast("User created & invite sent!");
   };
   const sendClientInvite = async () => {
     if (!inviteForm.email.trim()) return;
@@ -357,10 +375,11 @@ export default function App() {
     const prof = profiles.find(p => p.id === profId);
     const item = { id: `web-${Date.now()}`, ...websiteForm };
     await updateProfile(profId, { websites: [...(prof.websites || []), item] });
-    setWebsiteForm({ title: "", url: "", liveDate: "", description: "" });
+    setWebsiteForm({ title: "", url: "", liveDate: "", description: "", progress: 0, estimatedTimeline: "", phase: "Planning" });
     showToast("Website added");
   };
   const removeWebsite = async (profId, id) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { websites: (p.websites||[]).filter(w => w.id !== id) }); };
+  const updateWebsite = async (profId, webId, updates) => { const p = profiles.find(x => x.id === profId); await updateProfile(profId, { websites: (p?.websites||[]).map(w => w.id === webId ? { ...w, ...updates } : w) }); };
   const addAnalyticsItem = async (profId) => {
     if (!analyticsForm.title.trim()) return;
     const prof = profiles.find(p => p.id === profId);
@@ -382,7 +401,7 @@ export default function App() {
   // ── Tickets ────────────────────────────────────────────────────
   const submitTicket = async () => {
     if (!ticketForm.title.trim() || !currentUser) return;
-    const t = { id: `tkt-${Date.now()}`, clientId: currentUser.id, title: ticketForm.title.trim(), description: ticketForm.description.trim(), priority: ticketForm.priority, category: ticketForm.category, status: "open", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const t = { id: `tkt-${Date.now()}`, clientId: currentUser.id, clientEmail: currentUser.username, clientName: currentUser.displayName, title: ticketForm.title.trim(), description: ticketForm.description.trim(), priority: ticketForm.priority, category: ticketForm.category, status: "open", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await saveTickets([t, ...tickets]);
     setTicketForm({ title: "", description: "", priority: "medium", category: "Website Change" });
     fetch("/.netlify/functions/ticket-notify", {
@@ -395,14 +414,11 @@ export default function App() {
     const updatedTickets = tickets.map(t => t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t);
     await saveTickets(updatedTickets);
     const ticket = updatedTickets.find(t => t.id === id);
-    if (ticket && ticket.clientId && ticket.clientId !== currentUser?.id) {
-      const clientUser = users.find(u => u.id === ticket.clientId);
-      if (clientUser?.username) {
-        fetch("/.netlify/functions/ticket-notify", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "status_update", ticketTitle: ticket.title, newStatus: status, recipientEmail: clientUser.username, recipientName: clientUser.displayName }),
-        }).catch(() => {});
-      }
+    if (ticket && ticket.clientEmail && ticket.clientId !== currentUser?.id) {
+      fetch("/.netlify/functions/ticket-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "status_update", ticketTitle: ticket.title, newStatus: status, recipientEmail: ticket.clientEmail, recipientName: ticket.clientName || "" }),
+      }).catch(() => {});
     }
   };
   const addTicketTask = async (ticketId) => {
@@ -425,16 +441,17 @@ export default function App() {
   };
   const submitAdminTicket = async () => {
     if (!adminTicketForm.title.trim() || !currentUser) return;
-    const t = { id: `tkt-${Date.now()}`, clientId: adminTicketForm.clientId || currentUser.id, createdBy: "admin", title: adminTicketForm.title.trim(), description: adminTicketForm.description.trim(), priority: adminTicketForm.priority, category: adminTicketForm.category, status: "in_progress", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const assignedProfile = adminTicketForm.clientId ? profiles.find(p => p.userId === adminTicketForm.clientId) : null;
+    const assignedUser = assignedProfile ? profileUser(assignedProfile) : null;
+    const recipientEmail = assignedUser?.username || assignedProfile?.pendingEmail || "";
+    const recipientName = assignedUser?.displayName || assignedProfile?.pendingName || "";
+    const t = { id: `tkt-${Date.now()}`, clientId: adminTicketForm.clientId || currentUser.id, clientEmail: recipientEmail, clientName: recipientName, createdBy: "admin", title: adminTicketForm.title.trim(), description: adminTicketForm.description.trim(), priority: adminTicketForm.priority, category: adminTicketForm.category, status: "in_progress", tasks: [], comments: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await saveTickets([t, ...tickets]);
-    if (adminTicketForm.clientId) {
-      const clientUser = users.find(u => u.id === adminTicketForm.clientId);
-      if (clientUser?.username) {
-        fetch("/.netlify/functions/ticket-notify", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "new_ticket_for_client", ticketTitle: t.title, ticketDescription: t.description, priority: t.priority, category: t.category, recipientEmail: clientUser.username, recipientName: clientUser.displayName }),
-        }).catch(() => {});
-      }
+    if (recipientEmail) {
+      fetch("/.netlify/functions/ticket-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "new_ticket_for_client", ticketTitle: t.title, ticketDescription: t.description, priority: t.priority, category: t.category, recipientEmail, recipientName }),
+      }).catch(() => {});
     }
     setAdminTicketForm({ title: "", description: "", priority: "medium", category: "Website Change", clientId: "" });
     setShowAdminTicketForm(false);
@@ -448,14 +465,11 @@ export default function App() {
     await saveTickets(updatedTickets);
     setTicketCommentInput(prev => ({ ...prev, [ticketId]: "" }));
     const ticket = updatedTickets.find(t => t.id === ticketId);
-    if (isAdminComment && ticket) {
-      const clientUser = users.find(u => u.id === ticket.clientId);
-      if (clientUser?.username && clientUser.id !== currentUser.id) {
-        fetch("/.netlify/functions/ticket-notify", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "new_comment", ticketTitle: ticket.title, commentText: text, authorName: currentUser.displayName, recipientEmail: clientUser.username, recipientName: clientUser.displayName, isAdminToClient: true }),
-        }).catch(() => {});
-      }
+    if (isAdminComment && ticket && ticket.clientEmail && ticket.clientId !== currentUser.id) {
+      fetch("/.netlify/functions/ticket-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "new_comment", ticketTitle: ticket.title, commentText: text, authorName: currentUser.displayName, recipientEmail: ticket.clientEmail, recipientName: ticket.clientName || "", isAdminToClient: true }),
+      }).catch(() => {});
     } else if (!isAdminComment && ticket) {
       fetch("/.netlify/functions/ticket-notify", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -478,6 +492,14 @@ export default function App() {
     showToast(`Brand "${nb.name}" added!`);
   };
   const handleDeleteBrand = async (id) => { await saveBrands(brands.filter(b => b.id !== id)); showToast("Brand deleted"); };
+  const addProfileBrand = async (userId) => {
+    if (!profileBrandForm.name.trim()) return;
+    const cols = [C.accent, C.blue, C.purple, "#f97316", C.success, "#ec4899"];
+    const nb = { id: `b-${Date.now()}`, name: profileBrandForm.name.trim(), category: profileBrandForm.category, notes: profileBrandForm.notes.trim(), assignedTo: [userId], color: cols[Math.floor(Math.random() * cols.length)], createdAt: new Date().toISOString() };
+    await saveBrands([...brands, nb]);
+    setProfileBrandForm({ name: "", category: "Logo Design", notes: "" });
+    showToast(`Brand "${nb.name}" added!`);
+  };
   const toggleAssign = async (bid, uid) => {
     await saveBrands(brands.map(b => { if (b.id !== bid) return b; const c = b.assignedTo || []; return { ...b, assignedTo: c.includes(uid) ? c.filter(x => x !== uid) : [...c, uid] }; }));
   };
@@ -695,7 +717,11 @@ export default function App() {
   const clientUsers = users.filter(u => u.role === "client");
   const myProfile = profiles.find(p => p.userId === currentUser?.id);
   const selectedProfile = profiles.find(p => p.id === selectedProfileId);
-  const profileUser = (p) => users.find(u => u.id === p?.userId);
+  const profileUser = (p) => {
+    if (!p) return undefined;
+    if (p.userId?.startsWith("pre-")) return { id: p.userId, displayName: p.pendingName || "Pending User", username: p.pendingEmail || "", role: "client" };
+    return users.find(u => u.id === p.userId);
+  };
   const ct = content; // shorthand for reading content in JSX
 
   // ── Styles ─────────────────────────────────────────────────────
@@ -1413,86 +1439,11 @@ export default function App() {
 
           {/* Tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            {[{ k: "brands", l: `Brands (${brands.length})`, i: "✦" }, { k: "clients", l: `Clients (${profiles.length})`, i: "◎" }, { k: "tickets", l: `Tickets (${tickets.filter(t=>t.status!=="completed").length})`, i: "◈" }, { k: "users", l: `Users (${clientUsers.length})`, i: "◉" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
+            {[{ k: "clients", l: `Users (${profiles.length})`, i: "◎" }, { k: "tickets", l: `Tickets (${tickets.filter(t=>t.status!=="completed").length})`, i: "◈" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
               <button key={t.k} onClick={() => { setAdminTab(t.k); if (t.k === "editor" && !editContent) startEditing(); }} style={{ background: adminTab===t.k ? C.accentGlow : C.card, border: `1px solid ${adminTab===t.k ? C.accent : C.border}`, color: adminTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
             ))}
           </div>
 
-          {/* ── BRANDS TAB ── */}
-          {adminTab === "brands" && (<>
-            <div style={{ ...crd, padding: "32px 28px", marginBottom: 28 }}>
-              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 20 }}>+ Add New Brand</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
-                <div><label style={lbl}>Brand Name *</label><input style={inp} placeholder="e.g. Summit Coffee" value={brandForm.name} onChange={e => setBrandForm({...brandForm, name: e.target.value})} /></div>
-                <div><label style={lbl}>Category</label><select style={{...inp, cursor: "pointer"}} value={brandForm.category} onChange={e => setBrandForm({...brandForm, category: e.target.value})}>{["Logo Design","Full Branding","Website","Social Media","Print Design","Packaging","Other"].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                <div><label style={lbl}>Assign to Client</label><select style={{...inp, cursor: "pointer"}} value={brandForm.assignedTo} onChange={e => setBrandForm({...brandForm, assignedTo: e.target.value})}><option value="">— None —</option>{clientUsers.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}</select></div>
-              </div>
-              <div style={{ marginBottom: 14 }}><label style={lbl}>Notes</label><textarea style={{...inp, resize: "vertical"}} rows={2} placeholder="Project details…" value={brandForm.notes} onChange={e => setBrandForm({...brandForm, notes: e.target.value})} /></div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={lbl}>Image / Logo</label>
-                <input type="file" ref={fileRef} onChange={handleImageUpload} accept="image/*" style={{ display: "none" }} />
-                <div onClick={() => fileRef.current.click()} style={{ border: `2px dashed ${brandImage ? C.accent : C.border}`, borderRadius: 10, padding: brandImage ? 10 : 28, textAlign: "center", cursor: "pointer", background: brandImage ? "transparent" : C.bgAlt }}>
-                  {brandImage ? <img src={brandImage} alt="" style={{ maxHeight: 140, maxWidth: "100%", borderRadius: 6, objectFit: "contain" }} /> : <div><div style={{ fontSize: 24, marginBottom: 4 }}>📁</div><div style={{ color: C.textDim, fontSize: 12 }}>Click to upload</div></div>}
-                </div>
-              </div>
-              <button onClick={handleAddBrand} disabled={!brandForm.name.trim()} style={{ ...btn, opacity: brandForm.name.trim() ? 1 : .4, cursor: brandForm.name.trim() ? "pointer" : "not-allowed" }}>Add Brand</button>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
-              {brands.map((b,i) => (
-                <div key={b.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
-                  <div style={{ height: b.image ? "auto" : 70, background: b.image ? "transparent" : `linear-gradient(135deg,${b.color}20,${b.color}08)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {b.image ? <img src={b.image} alt="" style={{ width: "100%", height: 130, objectFit: "cover" }} /> : <div style={{ fontSize: 28, fontFamily: D, fontWeight: 700, color: b.color, opacity: .35 }}>{b.name.charAt(0)}</div>}
-                  </div>
-                  <div style={{ padding: "18px 20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <div>
-                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 3 }}>{b.name}</h4>
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5, background: `${b.color}10`, color: b.color }}>{b.category}</span>
-                      </div>
-                      <button onClick={() => handleDeleteBrand(b.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, width: 26, height: 26, borderRadius: 5, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                    </div>
-                    {b.notes && <p style={{ color: C.textDim, fontSize: 11, lineHeight: 1.6, margin: "6px 0" }}>{b.notes}</p>}
-                    {clientUsers.length > 0 && (
-                      <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}` }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Assigned To</div>
-                        {clientUsers.map(u => { const on = (b.assignedTo||[]).includes(u.id); return (
-                          <div key={u.id} onClick={() => toggleAssign(b.id, u.id)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "4px 0", cursor: "pointer", fontSize: 12, color: on ? C.white : C.textDim }}>
-                            <div style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${on ? C.accent : C.border}`, background: on ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: C.bg, fontWeight: 700 }}>{on ? "✓" : ""}</div>{u.displayName}
-                          </div>
-                        ); })}
-                      </div>
-                    )}
-                    <button onClick={() => openBrand(b.id)} style={{ ...btn, width: "100%", padding: "10px", fontSize: 12, marginTop: 12, background: C.bgAlt, color: C.accent, border: `1px solid ${C.border}` }}>Edit Brand Kit →</button>
-                  </div>
-                </div>
-              ))}
-              {!brands.length && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 50, color: C.textDim }}>No brands yet.</div>}
-            </div>
-          </>)}
-
-          {/* ── USERS TAB ── */}
-          {adminTab === "users" && (<>
-            <div style={{ ...crd, padding: "24px 28px", marginBottom: 28 }}>
-              <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 12 }}>Client Accounts</h3>
-              <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.7 }}>
-                User accounts are managed through <strong style={{ color: C.white }}>Clerk Dashboard</strong>. Clients who have signed in appear below — assign brands to them from the Brands tab. To grant admin access, set <code style={{ background: C.bgAlt, padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>publicMetadata.role = "admin"</code> in Clerk.
-              </p>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {users.map((u,i) => { const ac = brands.filter(b => (b.assignedTo||[]).includes(u.id)).length; return (
-                <div key={u.id} style={{ ...crd, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: u.role==="admin" ? C.accentGlow : "rgba(59,130,246,0.1)", border: `1px solid ${u.role==="admin" ? C.accent : C.blue}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, color: u.role==="admin" ? C.accent : C.blue }}>{u.displayName?.charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: C.white }}>{u.displayName} <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: u.role==="admin" ? C.accentGlow : "rgba(59,130,246,0.1)", color: u.role==="admin" ? C.accent : C.blue, textTransform: "uppercase", letterSpacing: "1px" }}>{u.role}</span></div>
-                      <div style={{ fontSize: 12, color: C.textDim }}>{u.username} · {ac} brand{ac!==1?"s":""}</div>
-                    </div>
-                  </div>
-                  {u.id !== currentUser?.id && <button onClick={() => handleDeleteUser(u.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "5px 12px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Remove</button>}
-                </div>
-              ); })}
-            </div>
-          </>)}
 
           {/* ══════════════════════════════════════════════════════
                CLIENTS TAB
@@ -1500,69 +1451,53 @@ export default function App() {
           {adminTab === "clients" && (<>
             {/* Profile list / create — when no profile is selected */}
             {!selectedProfileId && (<>
-              {/* Invite a new client */}
-              <div style={{ ...crd, padding: "28px 28px", marginBottom: 18 }}>
-                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>✉ Invite a Client</h3>
-                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Send a branded email with a link to the portal. Once they sign in they'll appear below so you can create their profile.</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 14 }}>
-                  <div><label style={lbl}>Name</label><input style={inp} placeholder="Jane Smith" value={inviteForm.name} onChange={e => setInviteForm({...inviteForm, name: e.target.value})} /></div>
-                  <div><label style={lbl}>Email *</label><input style={inp} type="email" placeholder="jane@example.com" value={inviteForm.email} onChange={e => setInviteForm({...inviteForm, email: e.target.value})} /></div>
-                </div>
-                <div style={{ marginBottom: 18 }}><label style={lbl}>Personal Note <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><textarea style={{...inp, resize:"vertical"}} rows={2} placeholder="e.g. Looking forward to working with you on your brand!" value={inviteForm.message} onChange={e => setInviteForm({...inviteForm, message: e.target.value})} /></div>
-                <button onClick={sendClientInvite} disabled={!inviteForm.email.trim() || inviteSending} style={{ ...btn, opacity: inviteForm.email.trim() && !inviteSending ? 1 : .4, cursor: inviteForm.email.trim() && !inviteSending ? "pointer" : "not-allowed" }}>{inviteSending ? "Sending…" : "Send Invite"}</button>
-              </div>
-
-              {/* Create form */}
+              {/* Add User form */}
               <div style={{ ...crd, padding: "28px 28px", marginBottom: 24 }}>
-                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>+ New Client Profile</h3>
-                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a profile for a client who has signed in. Their deliverables will appear in their portal. A welcome email is sent automatically.</p>
+                <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>+ Add User</h3>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a client account and send them an invite. Their portal will be ready when they sign in.</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 18 }}>
-                  <div>
-                    <label style={lbl}>Client Account *</label>
-                    <select style={{ ...inp, cursor: "pointer" }} value={newProfileForm.userId} onChange={e => setNewProfileForm({ ...newProfileForm, userId: e.target.value })}>
-                      <option value="">— Select user —</option>
-                      {clientUsers.filter(u => !profiles.some(p => p.userId === u.id)).map(u => (
-                        <option key={u.id} value={u.id}>{u.displayName} ({u.username})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={lbl}>Company / Business Name</label>
-                    <input style={inp} placeholder="e.g. Acme Corp" value={newProfileForm.company} onChange={e => setNewProfileForm({ ...newProfileForm, company: e.target.value })} />
-                  </div>
+                  <div><label style={lbl}>Name</label><input style={inp} placeholder="Jane Smith" value={newProfileForm.name} onChange={e => setNewProfileForm({ ...newProfileForm, name: e.target.value })} /></div>
+                  <div><label style={lbl}>Email *</label><input style={inp} type="email" placeholder="jane@example.com" value={newProfileForm.email} onChange={e => setNewProfileForm({ ...newProfileForm, email: e.target.value })} /></div>
+                  <div><label style={lbl}>Company / Business Name</label><input style={inp} placeholder="e.g. Acme Corp" value={newProfileForm.company} onChange={e => setNewProfileForm({ ...newProfileForm, company: e.target.value })} /></div>
                 </div>
-                <button onClick={createProfile} disabled={!newProfileForm.userId} style={{ ...btn, opacity: newProfileForm.userId ? 1 : .4 }}>Create Profile</button>
+                <button onClick={createProfile} disabled={!newProfileForm.email.trim()} style={{ ...btn, opacity: newProfileForm.email.trim() ? 1 : .4 }}>Create User & Send Invite</button>
               </div>
               {/* Profile cards */}
               {!profiles.length ? (
-                <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No client profiles yet. Create one above.</div>
+                <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No users yet. Add one above.</div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
                   {profiles.map((p,i) => {
                     const pu = profileUser(p);
+                    const isPending = p.userId?.startsWith("pre-");
                     const brandCount = brands.filter(b => (b.assignedTo||[]).includes(p.userId)).length;
+                    const ticketCount = tickets.filter(t => t.clientId === p.userId).length;
                     return (
                       <div key={p.id} style={{ ...crd, padding: "24px", cursor: "pointer", transition: "all .25s", animation: `fadeUp .35s ease ${i*.05}s forwards`, opacity: 0 }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "translateY(-2px)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = "translateY(0)"; }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                          <div style={{ width: 42, height: 42, borderRadius: 10, background: C.accentGlow, border: `1px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, color: C.accent }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 10, background: isPending ? "rgba(251,191,36,0.1)" : C.accentGlow, border: `1px solid ${isPending ? "#fbbf24" : C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, color: isPending ? "#fbbf24" : C.accent }}>
                             {(pu?.displayName || "?").charAt(0).toUpperCase()}
                           </div>
                           <button onClick={e => { e.stopPropagation(); deleteProfile(p.id); }} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "4px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>Delete</button>
                         </div>
-                        <div style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700, marginBottom: 2 }}>{pu?.displayName || "Unknown"}</div>
-                        {p.company && <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10 }}>{p.company}</div>}
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                          <div style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700 }}>{pu?.displayName || "Unknown"}</div>
+                          {isPending && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "rgba(251,191,36,0.12)", color: "#fbbf24", textTransform: "uppercase", letterSpacing: "1px" }}>Invite Sent</span>}
+                        </div>
+                        {p.company && <div style={{ fontSize: 12, color: C.textDim, marginBottom: 2 }}>{p.company}</div>}
+                        {isPending && <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>{p.pendingEmail}</div>}
+                        {!isPending && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0 14px" }}>
                           {[
                             { label: `${brandCount} brand${brandCount!==1?"s":""}`, color: C.accent },
-                            { label: `${(p.invoices||[]).length} invoice${(p.invoices||[]).length!==1?"s":""}`, color: C.blue },
-                            { label: `${(p.contracts||[]).length} contract${(p.contracts||[]).length!==1?"s":""}`, color: C.purple },
+                            { label: `${ticketCount} ticket${ticketCount!==1?"s":""}`, color: C.blue },
+                            { label: `${(p.invoices||[]).length} invoice${(p.invoices||[]).length!==1?"s":""}`, color: C.purple },
                           ].map(t => (
                             <span key={t.label} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: `${t.color}12`, color: t.color, textTransform: "uppercase", letterSpacing: "0.5px" }}>{t.label}</span>
                           ))}
-                        </div>
-                        <button onClick={() => { setSelectedProfileId(p.id); setClientTab("overview"); }} style={{ ...btn, width: "100%", padding: "9px", fontSize: 12, textAlign: "center" }}>Edit Profile →</button>
+                        </div>}
+                        <button onClick={() => { setSelectedProfileId(p.id); setClientTab("overview"); }} style={{ ...btn, width: "100%", padding: "9px", fontSize: 12, textAlign: "center", marginTop: isPending ? 14 : 0 }}>View Profile →</button>
                       </div>
                     );
                   })}
@@ -1596,7 +1531,8 @@ export default function App() {
                   <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
                     {[
                       { k: "overview", l: "Overview", i: "◈" },
-                      { k: "brands", l: `Brands (${profBrands.length})`, i: "✦" },
+                      { k: "brands", l: `Brand Kits (${profBrands.length})`, i: "✦" },
+                      { k: "tickets", l: `Tickets (${tickets.filter(t=>t.clientId===selectedProfile.userId).length})`, i: "◈" },
                       { k: "invoices", l: `Invoices (${(selectedProfile.invoices||[]).length})`, i: "◆" },
                       { k: "contracts", l: `Contracts (${(selectedProfile.contracts||[]).length})`, i: "◉" },
                       { k: "websites", l: `Websites (${(selectedProfile.websites||[]).length})`, i: "⊕" },
@@ -1610,11 +1546,12 @@ export default function App() {
                   {clientTab === "overview" && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14 }}>
                       {[
-                        { label: "Brands", count: profBrands.length, icon: "✦", color: C.accent, tab: "brands" },
-                        { label: "Invoices", count: (selectedProfile.invoices||[]).length, icon: "◆", color: C.blue, tab: "invoices" },
-                        { label: "Contracts", count: (selectedProfile.contracts||[]).length, icon: "◉", color: C.purple, tab: "contracts" },
-                        { label: "Websites", count: (selectedProfile.websites||[]).length, icon: "⊕", color: C.success, tab: "websites" },
-                        { label: "Analytics", count: (selectedProfile.analytics||[]).length, icon: "▲", color: "#f97316", tab: "analytics" },
+                        { label: "Brand Kits", count: profBrands.length, icon: "✦", color: C.accent, tab: "brands" },
+                        { label: "Tickets", count: tickets.filter(t=>t.clientId===selectedProfile.userId).length, icon: "◈", color: C.blue, tab: "tickets" },
+                        { label: "Invoices", count: (selectedProfile.invoices||[]).length, icon: "◆", color: C.purple, tab: "invoices" },
+                        { label: "Contracts", count: (selectedProfile.contracts||[]).length, icon: "◉", color: C.success, tab: "contracts" },
+                        { label: "Websites", count: (selectedProfile.websites||[]).length, icon: "⊕", color: "#f97316", tab: "websites" },
+                        { label: "Analytics", count: (selectedProfile.analytics||[]).length, icon: "▲", color: C.purple, tab: "analytics" },
                       ].map(s => (
                         <div key={s.tab} onClick={() => setClientTab(s.tab)} style={{ ...crd, padding: "24px 20px", cursor: "pointer", transition: "all .2s" }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; }}
@@ -1633,24 +1570,34 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Brands */}
+                  {/* Brand Kits */}
                   {clientTab === "brands" && (
                     <div>
-                      <div style={{ ...crd, padding: "16px 20px", marginBottom: 16, color: C.textDim, fontSize: 13 }}>
-                        Brands are assigned in the <button onClick={() => setAdminTab("brands")} style={{ background: "none", border: "none", color: C.accent, fontWeight: 600, cursor: "pointer", fontFamily: F, fontSize: 13, padding: 0 }}>Brands tab</button> — toggle the client's name on any brand.
+                      <div style={{ ...crd, padding: "24px 24px", marginBottom: 20 }}>
+                        <h4 style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 16 }}>+ Add New Brand Kit</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 14 }}>
+                          <div><label style={lbl}>Brand Name *</label><input style={inp} placeholder="e.g. Summit Coffee" value={profileBrandForm.name} onChange={e => setProfileBrandForm({...profileBrandForm, name: e.target.value})} /></div>
+                          <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={profileBrandForm.category} onChange={e => setProfileBrandForm({...profileBrandForm, category: e.target.value})}>{["Logo Design","Full Branding","Website","Social Media","Print Design","Packaging","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
+                          <div><label style={lbl}>Notes</label><input style={inp} placeholder="Brief notes…" value={profileBrandForm.notes} onChange={e => setProfileBrandForm({...profileBrandForm, notes: e.target.value})} /></div>
+                        </div>
+                        <button onClick={() => addProfileBrand(selectedProfile.userId)} disabled={!profileBrandForm.name.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: profileBrandForm.name.trim() ? 1 : .4 }}>Add Brand Kit</button>
                       </div>
                       {!profBrands.length ? (
-                        <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No brands assigned to this client yet.</div>
+                        <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No brand kits yet. Add one above.</div>
                       ) : (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
                           {profBrands.map(b => (
-                            <div key={b.id} onClick={() => openBrand(b.id)} style={{ ...crd, overflow: "hidden", cursor: "pointer", transition: "all .25s" }}
+                            <div key={b.id} style={{ ...crd, overflow: "hidden", transition: "all .25s" }}
                               onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; }}
                               onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}>
                               {b.image ? <img src={b.image} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} /> : <div style={{ height: 80, background: `linear-gradient(135deg,${b.color}20,${b.color}08)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: D, fontSize: 28, fontWeight: 700, color: b.color, opacity: .4 }}>{b.name.charAt(0)}</div>}
                               <div style={{ padding: "16px 18px" }}>
                                 <div style={{ fontFamily: D, fontSize: 16, color: C.white, fontWeight: 700, marginBottom: 4 }}>{b.name}</div>
                                 <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: `${b.color}12`, color: b.color }}>{b.category}</span>
+                                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                  <button onClick={() => openBrand(b.id)} style={{ ...btn, flex: 1, padding: "8px", fontSize: 12, background: C.bgAlt, color: C.accent, border: `1px solid ${C.border}` }}>Edit Kit →</button>
+                                  <button onClick={() => handleDeleteBrand(b.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11 }}>✕</button>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -1769,20 +1716,52 @@ export default function App() {
                           <div><label style={lbl}>URL *</label><input style={inp} placeholder="https://..." value={websiteForm.url} onChange={e => setWebsiteForm({...websiteForm, url: e.target.value})} /></div>
                           <div><label style={lbl}>Live Date</label><input style={inp} placeholder="Jan 2025" value={websiteForm.liveDate} onChange={e => setWebsiteForm({...websiteForm, liveDate: e.target.value})} /></div>
                           <div><label style={lbl}>Description</label><input style={inp} placeholder="Brief description..." value={websiteForm.description} onChange={e => setWebsiteForm({...websiteForm, description: e.target.value})} /></div>
+                          <div><label style={lbl}>Phase</label><select style={{...inp, cursor:"pointer"}} value={websiteForm.phase} onChange={e => setWebsiteForm({...websiteForm, phase: e.target.value})}>{["Planning","Design","Development","Review","Launch","Live"].map(p => <option key={p}>{p}</option>)}</select></div>
+                          <div><label style={lbl}>Est. Timeline</label><input style={inp} placeholder="e.g. 4–6 weeks" value={websiteForm.estimatedTimeline} onChange={e => setWebsiteForm({...websiteForm, estimatedTimeline: e.target.value})} /></div>
+                          <div style={{ gridColumn: "1/-1" }}>
+                            <label style={lbl}>Progress — {websiteForm.progress}%</label>
+                            <input type="range" min="0" max="100" value={websiteForm.progress} onChange={e => setWebsiteForm({...websiteForm, progress: parseInt(e.target.value)})} style={{ width: "100%", accentColor: C.accent, height: 6, cursor: "pointer" }} />
+                          </div>
                         </div>
                         <button onClick={() => addWebsite(selectedProfile.id)} disabled={!websiteForm.title.trim()||!websiteForm.url.trim()} style={{ ...btn, padding: "10px 22px", fontSize: 13, opacity: (websiteForm.title.trim()&&websiteForm.url.trim()) ? 1 : .4 }}>Add Website</button>
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 14 }}>
-                        {!(selectedProfile.websites||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
+                      <div style={{ display: "grid", gap: 14 }}>
+                        {!(selectedProfile.websites||[]).length && <div style={{ ...crd, padding: "40px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
                         {(selectedProfile.websites||[]).map(w => (
                           <div key={w.id} style={{ ...crd, padding: "22px 24px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                              <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700 }}>{w.title}</h4>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                              <div>
+                                <h4 style={{ fontFamily: D, fontSize: 17, color: C.white, fontWeight: 700, marginBottom: 4 }}>{w.title}</h4>
+                                {w.description && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.6, margin: 0 }}>{w.description}</p>}
+                              </div>
                               <button onClick={() => removeWebsite(selectedProfile.id, w.id)} style={{ background: C.dangerBg, border: "none", color: C.danger, padding: "4px 9px", borderRadius: 5, cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: F }}>✕</button>
                             </div>
-                            {w.description && <p style={{ color: C.textDim, fontSize: 12, lineHeight: 1.6, marginBottom: 10 }}>{w.description}</p>}
-                            {w.liveDate && <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>Live: <b style={{ color: C.white }}>{w.liveDate}</b></div>}
-                            <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "7px 16px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit ↗</a>
+                            {/* Progress bar */}
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                  {w.phase && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>{w.phase}</span>}
+                                  {w.estimatedTimeline && <span style={{ fontSize: 11, color: C.textDim }}>Est: <b style={{ color: C.white }}>{w.estimatedTimeline}</b></span>}
+                                </div>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: C.accent }}>{w.progress || 0}%</span>
+                              </div>
+                              <div style={{ height: 6, borderRadius: 99, background: C.bgAlt, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${w.progress || 0}%`, background: `linear-gradient(90deg, ${C.accent}, ${C.accentLight})`, borderRadius: 99, transition: "width .4s ease" }} />
+                              </div>
+                              {/* Editable controls */}
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, marginTop: 10, alignItems: "center" }}>
+                                <select value={w.phase || "Planning"} onChange={e => updateWebsite(selectedProfile.id, w.id, { phase: e.target.value })} style={{ ...inp, fontSize: 12, padding: "6px 10px", cursor: "pointer" }}>{["Planning","Design","Development","Review","Launch","Live"].map(p => <option key={p}>{p}</option>)}</select>
+                                <input style={{ ...inp, fontSize: 12, padding: "6px 10px" }} placeholder="Timeline (e.g. 4–6 wks)" defaultValue={w.estimatedTimeline || ""} onBlur={e => { if (e.target.value !== (w.estimatedTimeline || "")) updateWebsite(selectedProfile.id, w.id, { estimatedTimeline: e.target.value }); }} />
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <input type="range" min="0" max="100" value={w.progress || 0} onChange={e => updateWebsite(selectedProfile.id, w.id, { progress: parseInt(e.target.value) })} style={{ width: 80, accentColor: C.accent, cursor: "pointer" }} />
+                                  <span style={{ fontSize: 11, color: C.accent, fontWeight: 700, minWidth: 28 }}>{w.progress || 0}%</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                              {w.liveDate && <span style={{ fontSize: 11, color: C.textDim }}>Live: <b style={{ color: C.white }}>{w.liveDate}</b></span>}
+                              <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit ↗</a>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1826,6 +1805,94 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* Profile Tickets */}
+                  {clientTab === "tickets" && (() => {
+                    const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
+                    const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
+                    const profTickets = tickets.filter(t => t.clientId === selectedProfile.userId);
+                    return (
+                      <div>
+                        {!profTickets.length ? (
+                          <div style={{ ...crd, padding: "56px 24px", textAlign: "center", color: C.textDim }}>No tickets for this user yet.</div>
+                        ) : (
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {profTickets.map((tkt, i) => {
+                              const isExpanded = expandedTicketId === tkt.id;
+                              const doneTasks = (tkt.tasks||[]).filter(tk => tk.done).length;
+                              const totalTasks = (tkt.tasks||[]).length;
+                              return (
+                                <div key={tkt.id} style={{ ...crd, overflow: "hidden", animation: `fadeUp .35s ease ${i*.04}s forwards`, opacity: 0 }}>
+                                  <div onClick={() => setExpandedTicketId(isExpanded ? null : tkt.id)} style={{ padding: "18px 22px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                                        <span style={{ fontWeight: 700, fontSize: 15, color: C.white }}>{tkt.title}</span>
+                                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${PRIORITY_COLOR[tkt.priority]}15`, color: PRIORITY_COLOR[tkt.priority] }}>{tkt.priority}</span>
+                                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "1px", background: `${STATUS_COLOR[tkt.status]}15`, color: STATUS_COLOR[tkt.status] }}>{tkt.status.replace("_"," ")}</span>
+                                      </div>
+                                      <div style={{ fontSize: 12, color: C.textDim }}>Category: <b style={{ color: C.text }}>{tkt.category}</b>{totalTasks > 0 && <span style={{ marginLeft: 12, color: doneTasks===totalTasks ? C.success : C.textDim }}>{doneTasks}/{totalTasks} tasks done</span>} · {new Date(tkt.createdAt).toLocaleDateString()}</div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                                      <select value={tkt.status} onChange={e => { e.stopPropagation(); updateTicketStatus(tkt.id, e.target.value); }} onClick={e => e.stopPropagation()} style={{ background: C.bgAlt, border: `1px solid ${C.border}`, color: C.white, padding: "6px 10px", borderRadius: 7, fontSize: 12, fontFamily: F, cursor: "pointer" }}>
+                                        <option value="open">Open</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                      </select>
+                                      <button onClick={e => { e.stopPropagation(); deleteTicket(tkt.id); }} style={{ background: C.dangerBg, border: "none", color: C.danger, width: 28, height: 28, borderRadius: 6, cursor: "pointer", fontSize: 12 }}>✕</button>
+                                      <span style={{ color: C.textDim, fontSize: 13 }}>{isExpanded ? "▲" : "▼"}</span>
+                                    </div>
+                                  </div>
+                                  {isExpanded && (
+                                    <div style={{ borderTop: `1px solid ${C.border}`, padding: "20px 22px" }}>
+                                      {tkt.description && <p style={{ color: C.text, fontSize: 13, lineHeight: 1.7, marginBottom: 20, whiteSpace: "pre-wrap" }}>{tkt.description}</p>}
+                                      <div style={{ marginBottom: 16 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 10 }}>Checklist</div>
+                                        {(tkt.tasks||[]).map(tk => (
+                                          <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
+                                            <div onClick={() => toggleTicketTask(tkt.id, tk.id)} style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${tk.done ? C.success : C.border}`, background: tk.done ? C.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: C.bg, fontSize: 11, fontWeight: 700 }}>{tk.done ? "✓" : ""}</div>
+                                            <span style={{ flex: 1, fontSize: 13, color: tk.done ? C.textDim : C.white, textDecoration: tk.done ? "line-through" : "none" }}>{tk.text}</span>
+                                            <button onClick={() => removeTicketTask(tkt.id, tk.id)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 13, padding: "0 4px" }}>✕</button>
+                                          </div>
+                                        ))}
+                                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                          <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add a task..." value={ticketTaskInput[tkt.id] || ""} onChange={e => setTicketTaskInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => e.key === "Enter" && addTicketTask(tkt.id)} />
+                                          <button onClick={() => addTicketTask(tkt.id)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Add</button>
+                                        </div>
+                                      </div>
+                                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Comments & Updates</div>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+                                          {(tkt.comments||[]).map(cmt => (
+                                            <div key={cmt.id} style={{ display: "flex", gap: 10 }}>
+                                              <div style={{ width: 30, height: 30, borderRadius: "50%", background: cmt.isAdmin ? C.accentGlow : C.bgAlt, border: `1px solid ${cmt.isAdmin ? C.accent : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: cmt.isAdmin ? C.accent : C.textDim, flexShrink: 0 }}>{cmt.authorName.charAt(0).toUpperCase()}</div>
+                                              <div style={{ flex: 1, background: C.bgAlt, borderRadius: 10, padding: "10px 14px" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                                  <span style={{ fontSize: 12, fontWeight: 700, color: C.white }}>{cmt.authorName}</span>
+                                                  {cmt.isAdmin && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>CM Team</span>}
+                                                  <span style={{ fontSize: 11, color: C.textDim, marginLeft: "auto" }}>{new Date(cmt.createdAt).toLocaleDateString()}</span>
+                                                  <button onClick={() => removeTicketComment(tkt.id, cmt.id)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✕</button>
+                                                </div>
+                                                <p style={{ color: C.text, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{cmt.text}</p>
+                                              </div>
+                                            </div>
+                                          ))}
+                                          {!(tkt.comments||[]).length && <p style={{ color: C.textDim, fontSize: 12, margin: 0 }}>No comments yet.</p>}
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                          <input style={{ ...inp, fontSize: 13, padding: "8px 12px", flex: 1 }} placeholder="Add an update visible to client..." value={ticketCommentInput[tkt.id] || ""} onChange={e => setTicketCommentInput(prev => ({ ...prev, [tkt.id]: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { addTicketComment(tkt.id, true); e.preventDefault(); }}} />
+                                          <button onClick={() => addTicketComment(tkt.id, true)} style={{ ...btn, padding: "8px 16px", fontSize: 12 }}>Post</button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </>
               );
             })()}
@@ -1836,7 +1903,7 @@ export default function App() {
             const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
             const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
             const filtered = adminTicketFilter === "all" ? tickets : tickets.filter(t => t.status === adminTicketFilter);
-            const getUserName = (id) => users.find(u => u.id === id)?.displayName || "Unknown";
+            const getUserName = (id) => { const u = users.find(u => u.id === id); if (u) return u.displayName; const p = profiles.find(p => p.userId === id); return p?.pendingName || "Unknown"; };
             return (<>
               {/* Header: filters + new ticket button */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showAdminTicketForm ? 16 : 24, flexWrap: "wrap", gap: 12 }}>
@@ -1856,7 +1923,7 @@ export default function App() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
                       <div><label style={lbl}>Category</label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.category} onChange={e => setAdminTicketForm({...adminTicketForm, category: e.target.value})}>{["Website Change","Content Update","Bug Fix","New Feature","Design Request","Internal","Client Update","Other"].map(c => <option key={c}>{c}</option>)}</select></div>
                       <div><label style={lbl}>Priority</label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.priority} onChange={e => setAdminTicketForm({...adminTicketForm, priority: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-                      <div><label style={lbl}>Assign to Client <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.clientId} onChange={e => setAdminTicketForm({...adminTicketForm, clientId: e.target.value})}><option value="">Internal / No client</option>{clientUsers.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}</select></div>
+                      <div><label style={lbl}>Assign to User <span style={{ opacity: .5, fontWeight: 400, textTransform: "none" }}>(optional)</span></label><select style={{...inp, cursor:"pointer"}} value={adminTicketForm.clientId} onChange={e => setAdminTicketForm({...adminTicketForm, clientId: e.target.value})}><option value="">Internal / No client</option>{profiles.map(p => { const pu = profileUser(p); return <option key={p.id} value={p.userId}>{pu?.displayName || "Unknown"}{p.pendingEmail ? ` (${p.pendingEmail})` : ""}</option>; })}</select></div>
                     </div>
                     <div><label style={lbl}>Description</label><textarea style={{...inp, resize:"vertical"}} rows={4} placeholder="Describe what needs to be done..." value={adminTicketForm.description} onChange={e => setAdminTicketForm({...adminTicketForm, description: e.target.value})} /></div>
                   </div>
@@ -2232,14 +2299,29 @@ export default function App() {
 
             {/* Websites */}
             {clientTab === "websites" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
-                {!(myProfile.websites||[]).length && <div style={{ gridColumn: "1/-1", ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
+              <div style={{ display: "grid", gap: 16 }}>
+                {!(myProfile.websites||[]).length && <div style={{ ...crd, padding: "48px 24px", textAlign: "center", color: C.textDim }}>No websites yet.</div>}
                 {(myProfile.websites||[]).map((w,i) => (
                   <div key={w.id} style={{ ...crd, padding: "24px", animation: `fadeUp .4s ease ${i*.06}s forwards`, opacity: 0 }}>
-                    <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>{w.title}</h4>
-                    {w.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>{w.description}</p>}
-                    {w.liveDate && <div style={{ fontSize: 12, color: C.textDim, marginBottom: 12 }}>Live since: <b style={{ color: C.white }}>{w.liveDate}</b></div>}
-                    <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit Site ↗</a>
+                    <h4 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 4 }}>{w.title}</h4>
+                    {w.description && <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.6, marginBottom: 14 }}>{w.description}</p>}
+                    {/* Progress section */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          {w.phase && <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 5, background: C.accentGlow, color: C.accent, textTransform: "uppercase", letterSpacing: "1px" }}>{w.phase}</span>}
+                          {w.estimatedTimeline && <span style={{ fontSize: 12, color: C.textDim }}>Est. completion: <b style={{ color: C.white }}>{w.estimatedTimeline}</b></span>}
+                        </div>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>{w.progress || 0}%</span>
+                      </div>
+                      <div style={{ height: 8, borderRadius: 99, background: C.bgAlt, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${w.progress || 0}%`, background: `linear-gradient(90deg, ${C.accent}, ${C.accentLight})`, borderRadius: 99, transition: "width .5s ease" }} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                      {w.liveDate && <span style={{ fontSize: 12, color: C.textDim }}>Live since: <b style={{ color: C.white }}>{w.liveDate}</b></span>}
+                      <a href={w.url.startsWith("http") ? w.url : `https://${w.url}`} target="_blank" rel="noopener noreferrer" style={{ background: C.accentGlow, border: `1px solid ${C.accent}`, color: C.accent, padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: F, textDecoration: "none", display: "inline-block" }}>Visit Site ↗</a>
+                    </div>
                   </div>
                 ))}
               </div>
