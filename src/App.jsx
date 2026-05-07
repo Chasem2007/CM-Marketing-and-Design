@@ -338,12 +338,8 @@ export default function App() {
     const tempId = `pre-${Date.now()}`;
     const np = { id: `prof-${Date.now()}`, userId: tempId, pendingEmail: newProfileForm.email.trim(), pendingName: newProfileForm.name.trim(), company: newProfileForm.company.trim(), invoices: [], contracts: [], websites: [], analytics: [], notes: "", createdAt: new Date().toISOString() };
     await saveProfiles([...profiles, np]);
-    fetch("/.netlify/functions/send-invite", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newProfileForm.name.trim(), email: newProfileForm.email.trim(), siteUrl: window.location.origin, welcome: false }),
-    }).catch(() => {});
     setNewProfileForm({ name: "", email: "", company: "" });
-    showToast("User created & invite sent!");
+    showToast("User profile created!");
   };
   const sendClientInvite = async () => {
     if (!inviteForm.email.trim()) return;
@@ -1473,13 +1469,13 @@ export default function App() {
               {/* Add User form */}
               <div style={{ ...crd, padding: "28px 28px", marginBottom: 24 }}>
                 <h3 style={{ fontFamily: D, fontSize: 18, color: C.white, fontWeight: 700, marginBottom: 6 }}>+ Add User</h3>
-                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a client account and send them an invite. Their portal will be ready when they sign in.</p>
+                <p style={{ color: C.textDim, fontSize: 12, marginBottom: 18, lineHeight: 1.6 }}>Create a client profile, then invite them via the Clerk dashboard. Their portal will be ready when they sign in.</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 18 }}>
                   <div><label style={lbl}>Name</label><input style={inp} placeholder="Jane Smith" value={newProfileForm.name} onChange={e => setNewProfileForm({ ...newProfileForm, name: e.target.value })} /></div>
                   <div><label style={lbl}>Email *</label><input style={inp} type="email" placeholder="jane@example.com" value={newProfileForm.email} onChange={e => setNewProfileForm({ ...newProfileForm, email: e.target.value })} /></div>
                   <div><label style={lbl}>Company / Business Name</label><input style={inp} placeholder="e.g. Acme Corp" value={newProfileForm.company} onChange={e => setNewProfileForm({ ...newProfileForm, company: e.target.value })} /></div>
                 </div>
-                <button onClick={createProfile} disabled={!newProfileForm.email.trim()} style={{ ...btn, opacity: newProfileForm.email.trim() ? 1 : .4 }}>Create User & Send Invite</button>
+                <button onClick={createProfile} disabled={!newProfileForm.email.trim()} style={{ ...btn, opacity: newProfileForm.email.trim() ? 1 : .4 }}>Create User Profile</button>
               </div>
               {/* Profile cards */}
               {!profiles.length ? (
