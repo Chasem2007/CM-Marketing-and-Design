@@ -190,7 +190,7 @@ export default function App() {
   const [brandForm, setBrandForm] = useState({ name: "", category: "Logo Design", notes: "", assignedTo: "" });
   const [brandImage, setBrandImage] = useState(null);
   const [toast, setToast] = useState(null);
-  const [adminTab, setAdminTab] = useState("clients");
+  const [adminTab, setAdminTab] = useState("users");
   const [cmsSection, setCmsSection] = useState("hero");
   const [cmsUnsaved, setCmsUnsaved] = useState(false);
   const [contactForm, setContactForm] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", services: [] });
@@ -287,7 +287,20 @@ export default function App() {
         return updated;
       });
     }
-  }, [clerkLoaded, isSignedIn, user]);
+  }, [clerkLoaded, isSignedIn, user, loading]);
+
+  // ── Poll for fresh data while on portal pages ──────────────────
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (page !== "portal" && page !== "client") return;
+    const refresh = async () => {
+      try { const d = await storage.get("cm-profiles"); if (d?.value) setProfiles(JSON.parse(d.value)); } catch(e) {}
+      try { const d = await storage.get("cm-tickets"); if (d?.value) setTickets(JSON.parse(d.value)); } catch(e) {}
+      try { const d = await storage.get("cm-brands"); if (d?.value) setBrands(JSON.parse(d.value)); } catch(e) {}
+    };
+    const id = setInterval(refresh, 15000);
+    return () => clearInterval(id);
+  }, [isSignedIn, page]);
 
   // ── Redirect to home on sign-out if on protected page ─────────
   useEffect(() => {
@@ -715,7 +728,13 @@ export default function App() {
   const isClient = currentUser?.role === "client";
   const clientBrands = brands.filter(b => (b.assignedTo || []).includes(currentUser?.id));
   const clientUsers = users.filter(u => u.role === "client");
-  const myProfile = profiles.find(p => p.userId === currentUser?.id);
+  const currentEmail = currentUser?.username?.toLowerCase();
+  const myProfile = profiles.find(p =>
+    p.userId === currentUser?.id ||
+    (currentEmail && p.pendingEmail?.toLowerCase() === currentEmail)
+  );
+  const myClientTicketIds = [currentUser?.id, myProfile?.userId].filter(Boolean);
+  const myClientTickets = tickets.filter(t => myClientTicketIds.includes(t.clientId));
   const selectedProfile = profiles.find(p => p.id === selectedProfileId);
   const profileUser = (p) => {
     if (!p) return undefined;
@@ -1428,27 +1447,27 @@ export default function App() {
       )}
 
       {/* ══════════════════════════════════════════════════════════
-           ADMIN PORTAL — 3 tabs: Brands, Users, Site Editor
+           ADMIN PORTAL — 3 tabs: Users, Tickets, Site Editor
            ══════════════════════════════════════════════════════════ */}
       {page === "portal" && isAdmin && (
         <section style={{ maxWidth: 1140, margin: "0 auto", padding: "100px 20px 80px" }}>
           <div style={{ marginBottom: 36 }}>
             <div style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "3px", textTransform: "uppercase", marginBottom: 10 }}>Admin Dashboard</div>
-            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,3.5vw,44px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>Brand Portal</h2>
+            <h2 style={{ fontFamily: D, fontSize: "clamp(28px,3.5vw,44px)", fontWeight: 700, color: C.white, letterSpacing: "-0.02em" }}>Admin Portal</h2>
           </div>
 
           {/* Tabs */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            {[{ k: "clients", l: `Users (${profiles.length})`, i: "◎" }, { k: "tickets", l: `Tickets (${tickets.filter(t=>t.status!=="completed").length})`, i: "◈" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
+            {[{ k: "users", l: `Users (${profiles.length})`, i: "◎" }, { k: "tickets", l: `Tickets (${tickets.filter(t=>t.status!=="completed").length})`, i: "◈" }, { k: "editor", l: "Site Editor", i: "✏" }].map(t => (
               <button key={t.k} onClick={() => { setAdminTab(t.k); if (t.k === "editor" && !editContent) startEditing(); }} style={{ background: adminTab===t.k ? C.accentGlow : C.card, border: `1px solid ${adminTab===t.k ? C.accent : C.border}`, color: adminTab===t.k ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>{t.i} {t.l}</button>
             ))}
           </div>
 
 
           {/* ══════════════════════════════════════════════════════
-               CLIENTS TAB
+               USERS TAB
                ══════════════════════════════════════════════════════ */}
-          {adminTab === "clients" && (<>
+          {adminTab === "users" && (<>
             {/* Profile list / create — when no profile is selected */}
             {!selectedProfileId && (<>
               {/* Add User form */}
@@ -2177,7 +2196,7 @@ export default function App() {
 
           {/* Tab bar — Tickets always visible; other tabs need a profile */}
           <div style={{ display: "flex", gap: 6, marginBottom: 28, flexWrap: "wrap" }}>
-            <button onClick={() => setClientTab("tickets")} style={{ background: clientTab==="tickets" ? C.accentGlow : C.card, border: `1px solid ${clientTab==="tickets" ? C.accent : C.border}`, color: clientTab==="tickets" ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>◈ Tickets ({tickets.filter(t=>t.clientId===currentUser?.id).length})</button>
+            <button onClick={() => setClientTab("tickets")} style={{ background: clientTab==="tickets" ? C.accentGlow : C.card, border: `1px solid ${clientTab==="tickets" ? C.accent : C.border}`, color: clientTab==="tickets" ? C.accent : C.textDim, padding: "9px 20px", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: F }}>◈ Tickets ({myClientTickets.length})</button>
             {myProfile && [
               { k: "overview", l: "Overview", i: "◈" },
               { k: "brands", l: `Brand Kits (${clientBrands.length})`, i: "✦" },
@@ -2210,7 +2229,7 @@ export default function App() {
                   { label: "Contracts", count: (myProfile.contracts||[]).length, icon: "◉", color: C.purple, tab: "contracts" },
                   { label: "Websites", count: (myProfile.websites||[]).length, icon: "⊕", color: C.success, tab: "websites" },
                   { label: "Analytics", count: (myProfile.analytics||[]).length, icon: "▲", color: "#f97316", tab: "analytics" },
-                  { label: "Tickets", count: tickets.filter(t=>t.clientId===currentUser?.id).length, icon: "◈", color: C.purple, tab: "tickets" },
+                  { label: "Tickets", count: myClientTickets.length, icon: "◈", color: C.purple, tab: "tickets" },
                 ].map(s => (
                   <div key={s.tab} onClick={() => setClientTab(s.tab)} style={{ ...crd, padding: "26px 22px", cursor: "pointer", transition: "all .2s" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
@@ -2348,7 +2367,7 @@ export default function App() {
 
           {/* Tickets — always available regardless of profile */}
           {clientTab === "tickets" && (() => {
-            const myTickets = tickets.filter(t => t.clientId === currentUser?.id);
+            const myTickets = myClientTickets;
             const PRIORITY_COLOR = { low: C.success, medium: "#fbbf24", high: C.danger };
             const STATUS_COLOR = { open: C.blue, in_progress: "#f97316", completed: C.success };
             return (<>
